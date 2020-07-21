@@ -1,0 +1,55 @@
+---
+title: "EMDAT disasters: India and Sri Lanka"
+author: "Ram Mukund Kripa"
+date: "7/21/2020"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+
+```
+
+```{r packages}
+library(tidyverse)
+library(here)
+library(gganimate)
+library(readxl)
+```
+
+## Reading the data
+
+```{r readdata}
+file <- here("emdat_public_2020_07_21_query_uid-DkRLtJ.xlsx")
+sind_tbl <- read_excel(path = file,
+                       skip = 6,
+                       col_names = TRUE)
+glimpse(sind_tbl)
+```
+
+## Cleaning Up
+
+```{r cleaning}
+sind_tbl %>%
+  drop_na(Location) %>%
+  filter(`Disaster Subgroup` %in% c("Meteorological",
+                                    "Climatological",
+                                    "Hydrological")) %>%
+  mutate(Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude),
+         Year = as.numeric(Year)) %>%
+  filter(Latitude<14,Longitude>78) %>%
+  group_by(Year) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = Year,
+                       y = count))+
+  geom_line()
+
+```
+## Session info
+
+```{r, echo = TRUE}
+devtools::session_info()
+```
