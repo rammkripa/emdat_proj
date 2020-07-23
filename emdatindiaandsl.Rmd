@@ -1,9 +1,10 @@
 ---
 title: "EMDAT disasters: India and Sri Lanka"
 author: "Ram Mukund Kripa"
-date: "7/21/2020"
+date: `r lubridate::today()`
 output: github_document
 ---
+## Setup:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
@@ -12,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE,
 
 ```
 
+## Packages:
+
 ```{r packages}
 library(tidyverse)
 library(here)
@@ -19,19 +22,19 @@ library(gganimate)
 library(readxl)
 ```
 
-## Reading the data
+## Reading the data:
 
 ```{r readdata}
 file <- here("emdat_public_2020_07_21_query_uid-DkRLtJ.xlsx")
 sind_tbl <- read_excel(path = file,
                        skip = 6,
                        col_names = TRUE)
-glimpse(sind_tbl)
+head(sind_tbl)
 ```
 
-## Cleaning Up
+## Cleaning Up & Plotting
 
-```{r cleaning}
+```{r cleaningplotting}
 sind_tbl %>%
   drop_na(Location) %>%
   filter(`Disaster Subgroup` %in% c("Meteorological",
@@ -39,13 +42,26 @@ sind_tbl %>%
                                     "Hydrological")) %>%
   mutate(Latitude = as.numeric(Latitude),
          Longitude = as.numeric(Longitude),
-         Year = as.numeric(Year)) %>%
-  filter(Latitude<14,Longitude>78) %>%
-  group_by(Year) %>%
+         Year = as.numeric(Year),
+         `Start Month` = as_factor(`Start Month`)
+         ) %>%
+  # filtering either by latitude, location or Sri Lanka
+  filter((Latitude<14 & Longitude>78) | 
+           (stringr::str_detect(string = Location,
+        pattern = c("Madras","Chennai","Pondicherry","Tanjore","Tamil Nadu")
+        ))
+        | (Country=="Sri Lanka" & 
+             (stringr::str_detect(string = Location,
+                                  pattern = c("East"))))) %>%
+  drop_na(`Start Month`) %>%
+  group_by(`Start Month`,Country) %>%
   summarize(count = n()) %>%
-  ggplot(mapping = aes(x = Year,
+  ggplot(mapping = aes(x = `Start Month`,
                        y = count))+
-  geom_line()
+  geom_col(fill = "skyblue")+
+  labs(x = "Month",
+       y = "Number of Disasters",
+       title = "Disasters in South India/ SL by month")
 
 ```
 ## Session info
