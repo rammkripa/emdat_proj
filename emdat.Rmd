@@ -1,0 +1,129 @@
+---
+title: "EMDAT disasters"
+author: "Ram Mukund Kripa"
+date: `r lubridate::today()`
+output: github_document
+---
+## Setup:
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE,
+                      warning = FALSE,
+                      message = FALSE)
+
+```
+
+## Packages:
+
+```{r packages}
+
+library(tidyverse)
+library(here)
+library(gganimate)
+library(readxl)
+
+```
+
+## Reading the data:
+
+```{r readdata}
+
+file <- here("data","emdat_public_2020_07_21_query_uid-DkRLtJ.xlsx")
+sind_tbl <- read_excel(path = file,
+                       skip = 6,
+                       col_names = TRUE)
+head(sind_tbl)
+
+```
+
+## Cleaning Up & Plotting
+
+```{r cleaningplotting}
+
+sind_rel <- sind_tbl %>%
+  drop_na(Location) %>%
+  filter(`Disaster Subgroup` %in% c("Meteorological",
+                                    "Climatological",
+                                    "Hydrological")) %>%
+  mutate(Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude),
+         Year = as.numeric(Year),
+         `Start Month` = as_factor(`Start Month`)
+         ) %>%
+  # filtering either by latitude, location or Sri Lanka
+  filter(
+    (Latitude<14 & Longitude>78) | 
+    (stringr::str_detect(string = Location,
+        pattern = c("Madras","Chennai","Pondicherry","Tanjore","Tamil Nadu")
+        ))
+        | (Country=="Sri Lanka" & 
+             (stringr::str_detect(string = Location,
+                                  pattern = c("East"))))) %>%
+  drop_na(`Start Month`) 
+
+p_ind <- sind_rel %>%
+  group_by(`Start Month`,Country) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = `Start Month`,
+                       y = count))+
+  geom_col(fill = "skyblue")+
+  labs(
+       title = "Disasters in South India/SL by month")
+
+p_ind
+
+```
+
+# Brazil
+
+```{r}
+
+brazil_tbl <- read_excel(path = here("data","emdat_public_2020_07_24_query_uid-de55Iz.xlsx"),
+                         skip = 6,
+                         col_names = TRUE
+                         )
+
+locations <- c("Northeast","East","Recife","Nordeste","Salvador")
+
+brazil_rel <- brazil_tbl %>%
+  drop_na(Location) %>%
+  filter(`Disaster Subgroup` %in% c("Meteorological",
+                                    "Climatological",
+                                    "Hydrological")) %>%
+  mutate(Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude),
+         Year = as.numeric(Year),
+         `Start Month` = as_factor(`Start Month`)
+         ) %>%
+  # filtering either by Location 
+  filter(
+    stringr::str_detect(string = Location,
+                        pattern = paste(locations,collapse="|")
+                        ) 
+    ) %>%
+  drop_na(`Start Month`)
+
+```
+
+# Plot Brazil
+
+```{r}
+p_brazil <- brazil_rel %>%
+  mutate(`Start Month` = as_factor(`Start Month`)) %>%
+ggplot(mapping = aes(x = `Start Month`))+
+  geom_bar(fill = "orange")+
+  labs(title = "Number of Disasters by Month")
+
+p_brazil
+
+```
+```{r}
+library(patchwork)
+p_brazil+p_ind
+```
+## Session info
+
+```{r, echo = TRUE}
+devtools::session_info()
+```
