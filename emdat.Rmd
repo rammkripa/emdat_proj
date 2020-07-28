@@ -28,20 +28,28 @@ library(readxl)
 ## Reading the data:
 
 ```{r readdata}
+read_emdat <- function(stringy_path){
+  read_excel(path = stringy_path,
+             skip = 6,
+             col_names = TRUE)
+}
+files <- list.files(path = here("data"))
+listy <- list()
+for (file_name in files){
+  listy[[file_name]] <- read_emdat(here("data",file_name))
+}
 
-file <- here("data","emdat_public_2020_07_21_query_uid-DkRLtJ.xlsx")
-sind_tbl <- read_excel(path = file,
-                       skip = 6,
-                       col_names = TRUE)
-head(sind_tbl)
+emdat_dirty <- bind_rows(listy,.id = "region")
 
 ```
 
-## Cleaning Up & Plotting
+## Cleaning Up
 
-```{r cleaningplotting}
-
-sind_rel <- sind_tbl %>%
+```{r cleaning}
+locations_brazil <- c("Northeast","East","Recife","Nordeste","Salvador")
+locations_ind <- c("Madras","Chennai","Pondicherry","Tanjore","Tamil Nadu")
+locations_sl <- c("East")
+emdat_clean <- emdat_dirty %>%
   drop_na(Location) %>%
   filter(`Disaster Subgroup` %in% c("Meteorological",
                                     "Climatological",
@@ -53,75 +61,84 @@ sind_rel <- sind_tbl %>%
          ) %>%
   # filtering either by latitude, location or Sri Lanka
   filter(
-    (Latitude<14 & Longitude>78) | 
-    (stringr::str_detect(string = Location,
-        pattern = c("Madras","Chennai","Pondicherry","Tanjore","Tamil Nadu")
-        ))
-        | (Country=="Sri Lanka" & 
-             (stringr::str_detect(string = Location,
-                                  pattern = c("East"))))) %>%
+        (Country == "India" & stringr::str_detect(string = Location, 
+                                                  pattern = paste(locations_ind,collapse="|")))
+        |
+        (Country == "Sri Lanka" & stringr::str_detect(string = Location, 
+                                                      pattern = paste(locations_sl,collapse="|")))
+        |
+        (Country == "Brazil" & stringr::str_detect(string = Location, 
+                                                   pattern = paste(locations_brazil,collapse="|")))
+        ) %>%
   drop_na(`Start Month`) 
+emdat_clean
 
-p_ind <- sind_rel %>%
-  group_by(`Start Month`,Country) %>%
+```
+
+```{r latlongfunc}
+library(geonames)
+library(countrycode)
+get_lat_long <- function(location_name,country_name){
+  country_code <- countrycode(sourcevar = country_name,
+                              origin = "country.name",
+                              destination = "iso2c")
+  options(geonamesUsername = "rammkripa")
+  return_list <- GNsearch(q = location_name,
+                          country = country_code,
+                          type = "json"
+                          )
+  return(return_list %>%
+           select(toponymName,lat,lng))
+}
+## Testing Logic
+country_boxes <- 
+  tribble(
+    ~country_name, ~lat_min, ~lat_max, ~lng_min, ~lng_max,
+    "India",
+    "Sri Lanka",
+    "Brazil",
+    
+  )
+pondi_results <- get_lat_long("Pondicherry","India")
+res_df <- pondi_results %>%
+  head(n = 3L) %>%
+  mutate(lat = as.numeric(lat),lng = as.numeric(lng)) %>%
+  mutate(within_box = (lat<14 & lng>78))
+any(res_df$within_box)
+  
+  
+```
+
+# Plotting
+
+```{r plot1}
+emdat_clean %>%
+  group_by(region,`Start Month`) %>%
   summarize(count = n()) %>%
-  ggplot(mapping = aes(x = `Start Month`,
-                       y = count))+
-  geom_col(fill = "skyblue")+
-  labs(
-       title = "Disasters in South India/SL by month")
+  ggplot(mapping = aes(x = `Start Month`,y = count,fill = region))+
+  geom_col()+
+  facet_wrap(~ region)+
+  labs(title = "Number of Disasters by Month",
+       subtitle = "In each Location",
+       x = "Month of Disaster",
+       y = "Count")
+```
 
-p_ind
+```{r plot2}
+
+emdat_clean %>%
+  group_by(region,Year) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = Year,y=count,fill = region))+
+  geom_col()+
+  facet_wrap(~ region)+
+  labs(title = "Number of Disasters by Year",
+       subtitle = "In each Location",
+       x = "Year of Disaster",
+       y = "Count")
 
 ```
 
-# Brazil
-
-```{r}
-
-brazil_tbl <- read_excel(path = here("data","emdat_public_2020_07_24_query_uid-de55Iz.xlsx"),
-                         skip = 6,
-                         col_names = TRUE
-                         )
-
-locations <- c("Northeast","East","Recife","Nordeste","Salvador")
-
-brazil_rel <- brazil_tbl %>%
-  drop_na(Location) %>%
-  filter(`Disaster Subgroup` %in% c("Meteorological",
-                                    "Climatological",
-                                    "Hydrological")) %>%
-  mutate(Latitude = as.numeric(Latitude),
-         Longitude = as.numeric(Longitude),
-         Year = as.numeric(Year),
-         `Start Month` = as_factor(`Start Month`)
-         ) %>%
-  # filtering either by Location 
-  filter(
-    stringr::str_detect(string = Location,
-                        pattern = paste(locations,collapse="|")
-                        ) 
-    ) %>%
-  drop_na(`Start Month`)
-
-```
-
-# Plot Brazil
-
-```{r}
-p_brazil <- brazil_rel %>%
-  mutate(`Start Month` = as_factor(`Start Month`)) %>%
-ggplot(mapping = aes(x = `Start Month`))+
-  geom_bar(fill = "orange")+
-  labs(title = "Number of Disasters by Month")
-
-p_brazil
-
-```
-```{r}
-library(patchwork)
-p_brazil+p_ind
-```
 ## Session info
 
 ```{r, echo = TRUE}
