@@ -33,22 +33,26 @@ read_emdat <- function(stringy_path){
              skip = 6,
              col_names = TRUE)
 }
-files <- list.files(path = here("data"))
+files <- list.files(path = here("data"),
+                    pattern = ".xlsx")
+
 listy <- list()
+
 for (file_name in files){
-  listy[[file_name]] <- read_emdat(here("data",file_name))
+  
+  file_name_trimmed <- tools::file_path_sans_ext(basename(file_name))
+  
+  listy[[file_name_trimmed]] <- read_emdat(here("data",file_name))
+  
 }
 
 emdat_dirty <- bind_rows(listy,.id = "region")
-
+glimpse(emdat_dirty)
 ```
 
-## Cleaning Up
+## Tidying The Data as Given
 
 ```{r cleaning}
-locations_brazil <- c("Northeast","East","Recife","Nordeste","Salvador")
-locations_ind <- c("Madras","Chennai","Pondicherry","Tanjore","Tamil Nadu")
-locations_sl <- c("East")
 emdat_clean <- emdat_dirty %>%
   drop_na(Location) %>%
   filter(`Disaster Subgroup` %in% c("Meteorological",
@@ -59,23 +63,15 @@ emdat_clean <- emdat_dirty %>%
          Year = as.numeric(Year),
          `Start Month` = as_factor(`Start Month`)
          ) %>%
-  # filtering either by latitude, location or Sri Lanka
-  filter(
-        (Country == "India" & stringr::str_detect(string = Location, 
-                                                  pattern = paste(locations_ind,collapse="|")))
-        |
-        (Country == "Sri Lanka" & stringr::str_detect(string = Location, 
-                                                      pattern = paste(locations_sl,collapse="|")))
-        |
-        (Country == "Brazil" & stringr::str_detect(string = Location, 
-                                                   pattern = paste(locations_brazil,collapse="|")))
-        ) %>%
   drop_na(`Start Month`) 
 emdat_clean
 
 ```
 
+## A Function to obtain the Lat and Long of the top three results for a place
+
 ```{r latlongfunc}
+
 library(geonames)
 library(countrycode)
 get_lat_long <- function(location_name,country_name){
@@ -87,55 +83,83 @@ get_lat_long <- function(location_name,country_name){
                           country = country_code,
                           type = "json"
                           )
-  return(return_list %>%
-           select(toponymName,lat,lng))
+    return_list %>%
+      select(toponymName,lat,lng) %>%
+      head(n = 3L) %>%
+      mutate(lat = as.numeric(lat),lng = as.numeric(lng))
 }
 ## Testing Logic
-country_boxes <- 
-  tribble(
-    ~country_name, ~lat_min, ~lat_max, ~lng_min, ~lng_max,
-    "India",
-    "Sri Lanka",
-    "Brazil",
-    
-  )
 pondi_results <- get_lat_long("Pondicherry","India")
-res_df <- pondi_results %>%
-  head(n = 3L) %>%
-  mutate(lat = as.numeric(lat),lng = as.numeric(lng)) %>%
-  mutate(within_box = (lat<14 & lng>78))
-any(res_df$within_box)
+pondi_results
   
   
 ```
 
-# Plotting
+## Function to check if places in a list are in the box specified
 
-```{r plot1}
-emdat_clean %>%
-  group_by(region,`Start Month`) %>%
-  summarize(count = n()) %>%
-  ggplot(mapping = aes(x = `Start Month`,y = count,fill = region))+
-  geom_col()+
-  facet_wrap(~ region)+
-  labs(title = "Number of Disasters by Month",
-       subtitle = "In each Location",
-       x = "Month of Disaster",
-       y = "Count")
+```{r funcinbox}
+
+### Writing a function to check if a list of places has at least one location whose lat long is in the box
+### Function should call get_lat_long
+### first load bounds
+bounds <- read_csv(here("data","region_boxes_csv.csv"))
+
+is_in_box <- function(locations,country_name,region_name){
+  locations_spl <- stringr::str_split(locations,pattern=", ")[[1]]
+  results <- list()
+  for (loc in locations_spl){
+    reg <- bounds %>%
+      filter(Region == region_name)
+    
+    loc_df <- get_lat_long(loc,country_name) %>%
+      mutate(in_box = (lat<=reg$Lat_max & lat>=reg$Lat_min
+                    &lng<=reg$Lng_max & lng>=reg$Lng_min))
+    
+    results[[loc]] <- any(loc_df$in_box)
+  }
+  return((results))
+}
+
+## Testing
+is_in_box(locations = "Pondicherry, Tamil Nadu, Rajasthan",
+          country_name = "India",
+          region_name = "India_SriLanka")
+
+
 ```
 
-```{r plot2}
+## Filtering places that are in the box of interest
+
+```{r cleaningfinal}
+
+clean_func <- function(listE){
+  
+    result <- tryCatch(
+      {any(is_in_box(listE[[1]],
+                listE[[2]],
+                listE[[3]]))},
+      error = function(e){
+        e
+      }
+                )
+ 
+   return(result)   
+}
+list("Location" = "Pondicherry, Tamil Nadu, Jaipur",
+     "Country" = "India",
+     "region" = "India_SriLanka")%>%
+clean_func()
+
+emdat_clean$in_region <- emdat_clean %>%
+  select(Location,Country,region) %>%
+  apply(1,clean_func)
 
 emdat_clean %>%
-  group_by(region,Year) %>%
-  summarize(count = n()) %>%
-  ggplot(mapping = aes(x = Year,y=count,fill = region))+
-  geom_col()+
-  facet_wrap(~ region)+
-  labs(title = "Number of Disasters by Year",
-       subtitle = "In each Location",
-       x = "Year of Disaster",
-       y = "Count")
+  summarize(count_NA = sum(is.na(in_region)))
+
+emdat_clean %>%
+  filter(is.na(in_region))
+  
 
 ```
 
