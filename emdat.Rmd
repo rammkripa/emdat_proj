@@ -110,14 +110,20 @@ is_in_box <- function(locations,country_name,region_name){
   for (loc in locations_spl){
     reg <- bounds %>%
       filter(Region == region_name)
-    
-    loc_df <- get_lat_long(loc,country_name) %>%
-      mutate(in_box = (lat<=reg$Lat_max & lat>=reg$Lat_min
+    results[[loc]] <- tryCatch(
+      {
+        loc_df <- get_lat_long(loc,country_name) %>%
+                  mutate(in_box = (lat<=reg$Lat_max & lat>=reg$Lat_min
                     &lng<=reg$Lng_max & lng>=reg$Lng_min))
-    
-    results[[loc]] <- any(loc_df$in_box)
+        #results[[loc]] <-
+        any(loc_df$in_box)
+      },
+      error = function(e){
+        NA
+      }
+    )
   }
-  return((results))
+  return(results)
 }
 
 ## Testing
@@ -157,9 +163,10 @@ emdat_clean$in_region <- emdat_clean %>%
 emdat_clean %>%
   summarize(count_NA = sum(is.na(in_region)))
 
-emdat_clean %>%
-  filter(is.na(in_region))
+new_df <- emdat_clean %>%
+  select(Location,Country,in_region)
   
+any(FALSE,NA,"error","blahblah")
 
 ```
 
