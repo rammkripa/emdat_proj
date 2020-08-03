@@ -137,11 +137,27 @@ is_in_box(locations = "Pondicherry, Tamil Nadu, Rajasthan",
 ## Filtering places that are in the box of interest
 
 ```{r cleaningfinal}
+my_any <- function(listy){
+  rez <- NA
+  for(i in seq_along(listy)){
+    val = listy[[i]]
+    if (is.na(val)){
+      stringy <- "dummy"
+    }
+    else if (val == TRUE){
+      return(TRUE)
+    }
+    else if (val == FALSE ) {
+      rez <- FALSE
+    }
+  }
+  return(rez)
+}
 
 clean_func <- function(listE){
   
     result <- tryCatch(
-      {any(is_in_box(listE[[1]],
+      {my_any(is_in_box(listE[[1]],
                 listE[[2]],
                 listE[[3]]))},
       error = function(e){
@@ -151,10 +167,49 @@ clean_func <- function(listE){
  
    return(result)   
 }
+# Testing clean_func
+
 list("Location" = "Pondicherry, Tamil Nadu, Jaipur",
      "Country" = "India",
      "region" = "India_SriLanka")%>%
 clean_func()
+
+```
+
+## Testing my_any
+```{r}
+any(FALSE,NA,"error","blahblah")
+xl <- list("x" = FALSE,
+           "y" = NA,
+           "z" = "err")
+my_any(xl)
+```
+
+## Cleaning Brazil data (a test)
+
+```{r}
+
+brazil_dat <- emdat_clean %>%
+  filter(region == "Brazil")
+
+brazil_dat$in_region <- brazil_dat %>%
+  select(Location,Country,region) %>%
+  apply(1,clean_func)
+
+brazil_dat %>%
+  summarize(perc_NA = mean(is.na(in_region)))
+
+brazil_dat %>%
+  drop_na(in_region) %>%
+  ggplot(mapping = aes(x = `Start Month`,fill = in_region))+
+  geom_bar(stat = "count", position = "dodge")+
+  labs(y = "Number of Disasters",
+       title = "No of Disasters by Start Month",
+       fill = "In Region of Interest")
+
+```
+
+```{r}
 
 emdat_clean$in_region <- emdat_clean %>%
   select(Location,Country,region) %>%
@@ -166,7 +221,7 @@ emdat_clean %>%
 new_df <- emdat_clean %>%
   select(Location,Country,in_region)
   
-any(FALSE,NA,"error","blahblah")
+
 
 ```
 
