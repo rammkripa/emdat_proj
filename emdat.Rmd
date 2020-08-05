@@ -83,15 +83,26 @@ get_lat_long <- function(location_name,country_name){
                           country = country_code,
                           type = "json"
                           )
-    return_list %>%
+  return_val <- tryCatch(
+    expr = {
+      return_df <- return_list %>%
       select(toponymName,lat,lng) %>%
-      head(n = 3L) %>%
+      head(n = 1L) %>%
       mutate(lat = as.numeric(lat),lng = as.numeric(lng))
+      list("lat" = return_df$lat,"long" = return_df$lng)
+    },
+  error = function(e)
+  {
+    list("lat" = NA,
+         "long" = NA)
+  }
+  )
+  return(return_val)
 }
 ## Testing Logic
 pondi_results <- get_lat_long("Pondicherry","India")
 pondi_results
-  
+
   
 ```
 
@@ -206,6 +217,84 @@ brazil_dat %>%
   labs(y = "Number of Disasters",
        title = "No of Disasters by Start Month",
        fill = "In Region of Interest")
+
+```
+
+```{r}
+brazil_dat %>%
+  filter(is.na(in_region)) %>%
+  select(Location,in_region)
+```
+
+### New Cleaning strategy
+
+```{r}
+library(tidytext)
+brazil_dirty <- emdat_clean %>%
+  filter(region == "Brazil")
+
+dummy_words <- c(
+                 "cities","states","provinces","districts","municipalities","regions",
+                 "city","state","province","district","municipality","region",
+                 "near")
+
+brazil_clean <- brazil_dirty %>%
+  unnest_tokens(output = "location_word",
+                input = Location, 
+                token = stringr::str_split,
+                pattern = ",|\\(|\\)|;") %>%
+  mutate(location_word = str_remove(
+    string = location_word, 
+    pattern = str_c(dummy_words,collapse="|")))%>%
+  filter(!str_detect(location_word, "^[0-9]*$")) %>%
+  filter(location_word!=" ") %>%
+  mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
+
+in_reg <- function(latlong,region_name){
+  reg <- bounds %>%
+    filter(Region == region_name)
+  latitude <- latlong$lat
+  longitude <- latlong$long
+  in_box <- (latitude<=reg$Lat_max & latitude>=reg$Lat_min
+                    &longitude<=reg$Lng_max & longitude>=reg$Lng_min)
+  return(in_box)
+}
+
+in_reg(pondi_results,"India_SriLanka")
+
+new_any <- function(vec){
+  resy <- NA
+  for (i in vec){
+    if (is.na(i)){
+      
+    }
+    else if (i==TRUE) {
+      return(TRUE)
+    }
+    else{
+      resy <- FALSE
+    }
+  }
+  return(resy)
+}
+  
+brazil_clean %>%
+  rowwise() %>%
+  mutate(in_the_box = in_reg(location_data,region),
+         `Dis No` = as_factor(`Dis No`),
+         `Start Month` = as.numeric(`Start Month`)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_box = new_any(in_the_box),
+            start_month = mean(`Start Month`),
+            start_year = mean(Year)) %>%
+  drop_na(any_in_box) %>%
+  mutate(start_month = as_factor(start_month)) %>%
+  ggplot(mapping = aes(x = start_month, fill = any_in_box))+
+  geom_bar(stat = "count",
+           position = "dodge")
+  
+
+
 
 ```
 
