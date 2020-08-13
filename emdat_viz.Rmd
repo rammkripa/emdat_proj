@@ -1,0 +1,76 @@
+---
+title: "EMDAT Visualizations"
+author: "Ram Mukund Kripa"
+date: "8/13/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(tidyverse)
+library(here)
+library(rnaturalearth)
+
+```
+
+```{r dataget}
+brazil_clean <- read_csv(file = here("clean_data","Brazil.csv"))
+head(brazil_clean)
+```
+
+```{r}
+bounds <- read_csv(file = here("data","region_boxes_csv.csv"))
+in_reg <- function(latitude,longitude,region_name){
+  reg <- bounds %>%
+    filter(Region == region_name)
+  in_box <- (latitude<=reg$Lat_max & latitude>=reg$Lat_min
+                    &longitude<=reg$Lng_max & longitude>=reg$Lng_min)
+  return(in_box)
+}
+new_any <- function(vec){
+  resy <- NA
+  for (i in vec){
+    if (is.na(i)){
+      
+    }
+    else if (i==TRUE) {
+      return(TRUE)
+    }
+    else{
+      resy <- FALSE
+    }
+  }
+  return(resy)
+}
+```
+
+## Brazil Map
+```{r}
+
+braz_map <- ne_countries(country = "Brazil",
+                         returnclass = "sf")
+brazil_clean %>%
+  rowwise() %>%
+  mutate(in_the_box = in_reg(lat,long,region),
+         `Dis No` = as_factor(`Dis No`),
+         `Start Month` = as.numeric(`Start Month`)) %>%
+  drop_na(lat) %>%
+ggplot()+
+  geom_sf(data = braz_map)+
+   geom_point(mapping = aes(y = lat, x = long, color = in_the_box))+
+  labs(title = "Brazil Map",
+       color = "In Lat Long Box")
+
+  
+
+
+```
+
+```{r}
+
+
+```

@@ -293,26 +293,26 @@ brazil_clean %>%
   geom_bar(stat = "count",
            position = "dodge")
   
+brazil_clean %>%
+  rowwise() %>%
+  mutate(in_the_box = in_reg(location_data,region),
+         `Dis No` = as_factor(`Dis No`),
+         `Start Month` = as.numeric(`Start Month`)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_box = new_any(in_the_box),
+            start_month = mean(`Start Month`),
+            start_year = mean(Year)) %>%
+  group_by(any_in_box) %>%
+  summarize(count = n())
 
 
 
 ```
 
-```{r}
-
-emdat_clean$in_region <- emdat_clean %>%
-  select(Location,Country,region) %>%
-  apply(1,clean_func)
-
-emdat_clean %>%
-  summarize(count_NA = sum(is.na(in_region)))
-
-new_df <- emdat_clean %>%
-  select(Location,Country,in_region)
-  
 
 
-```
+
+
 
 ## Session info
 
