@@ -74,7 +74,12 @@ emdat_clean
 
 library(geonames)
 library(countrycode)
+## cached
+cache_list = list()
 get_lat_long <- function(location_name,country_name){
+  if (location_name %in% names(cache_list)){
+    return(cache_list[[location_name]])
+  }
   country_code <- countrycode(sourcevar = country_name,
                               origin = "country.name",
                               destination = "iso2c")
@@ -97,6 +102,7 @@ get_lat_long <- function(location_name,country_name){
          "long" = NA)
   }
   )
+  cache_list[[location_name]] <- return_val
   return(return_val)
 }
 ## Testing Logic
@@ -236,7 +242,7 @@ brazil_dirty <- emdat_clean %>%
 dummy_words <- c(
                  "cities","states","provinces","districts","municipalities","regions",
                  "city","state","province","district","municipality","region",
-                 "near")
+                 "near","-")
 
 brazil_clean <- brazil_dirty %>%
   unnest_tokens(output = "location_word",
@@ -250,17 +256,13 @@ brazil_clean <- brazil_dirty %>%
   filter(location_word!=" ") %>%
   mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
 
-in_reg <- function(latlong,region_name){
+in_reg <- function(latitude,longitude,region_name){
   reg <- bounds %>%
     filter(Region == region_name)
-  latitude <- latlong$lat
-  longitude <- latlong$long
   in_box <- (latitude<=reg$Lat_max & latitude>=reg$Lat_min
                     &longitude<=reg$Lng_max & longitude>=reg$Lng_min)
   return(in_box)
 }
-
-in_reg(pondi_results,"India_SriLanka")
 
 new_any <- function(vec){
   resy <- NA
@@ -309,7 +311,83 @@ brazil_clean %>%
 
 ```
 
+```{r}
+indsl_dirty <- read_emdat(here("data","India_SriLanka.xlsx"))%>%
+  mutate(region = "India_SriLanka") 
 
+
+indsl_loc_dat_1 <- indsl_dirty %>%
+  filter(!is.na(`Start Month`)) %>%
+  unnest_tokens(output = "location_word",
+                input = Location, 
+                token = stringr::str_split,
+                pattern = ",|\\(|\\)|;|\\/|\\+|\\&|and") %>%
+  mutate(location_word = str_remove(
+    string = location_word, 
+    pattern = str_c(dummy_words,collapse="|")))%>%
+  filter(!str_detect(location_word, "^[0-9]*$")) %>%
+  filter(location_word!=" ") %>%
+  mutate(location_word = stringr::str_trim(location_word)) %>%
+  select(Country,location_word) %>%
+  unique() %>%
+  head(n=999L) %>%
+  mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
+
+indsl_loc_dat_2 <- indsl_dirty %>%
+  filter(!is.na(`Start Month`)) %>%
+  unnest_tokens(output = "location_word",
+                input = Location, 
+                token = stringr::str_split,
+                pattern = ",|\\(|\\)|;|\\/|\\+|\\&|and") %>%
+  mutate(location_word = str_remove(
+    string = location_word, 
+    pattern = str_c(dummy_words,collapse="|")))%>%
+  filter(!str_detect(location_word, "^[0-9]*$")) %>%
+  filter(location_word!=" ") %>%
+  mutate(location_word = stringr::str_trim(location_word)) %>%
+  select(Country,location_word) %>%
+  unique() %>%
+  tail(n=115L) %>%
+  mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
+
+indsl_loc_dat <- bind_rows(indsl_loc_dat_1,
+                           indsl_loc_dat_2) %>%
+  unique() %>%
+  unnest_wider(location_data)
+
+indsl_cleany <- indsl_dirty %>%
+  filter(!is.na(`Start Month`)) %>%
+  unnest_tokens(output = "location_word",
+                input = Location, 
+                token = stringr::str_split,
+                pattern = ",|\\(|\\)|;|\\/|\\+|\\&|and") %>%
+  mutate(location_word = str_remove(
+    string = location_word, 
+    pattern = str_c(dummy_words,collapse="|")))%>%
+  filter(!str_detect(location_word, "^[0-9]*$")) %>%
+  filter(location_word!=" ") %>%
+  mutate(location_word = stringr::str_trim(location_word)) %>%
+  left_join(indsl_loc_dat)
+  
+indsl_cleany %>%
+  rowwise() %>%
+  mutate(in_the_box = in_reg(lat,long,region),
+         `Dis No` = as_factor(`Dis No`),
+         `Start Month` = as.numeric(`Start Month`)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_box = new_any(in_the_box),
+            start_month = mean(`Start Month`),
+            start_year = mean(Year)) %>%
+  group_by(any_in_box) %>%
+  summarize(count = n())
+
+
+  
+indsl_cleany %>%
+  write_csv(here("clean_data","India_SriLanka.csv"))
+  
+
+```
 
 
 
