@@ -87,6 +87,14 @@ ggplot()+
 ```
 
 ```{r}
+emdat_inbox %>%
+  group_by(`Dis No`) %>%
+  summarize(region_name = region, any_in_box = new_any(in_the_box)) %>%
+  group_by(any_in_box) %>%
+  summarize(count = n())
+```
+
+```{r}
 library(patchwork)
 
 region_plots <- function(region_name){
@@ -145,13 +153,7 @@ ggplot()+
 ```{r}
 region_plots("India_SriLanka")
 ```
-```{r}
-emdat_inbox %>%
-  group_by(`Dis No`) %>%
-  summarize(region_name = region, any_in_box = new_any(in_the_box)) %>%
-  group_by(any_in_box) %>%
-  summarize(count = n())
-```
+
 
 # USING SHAPEFILES
 
