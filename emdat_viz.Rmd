@@ -226,13 +226,15 @@ points_df <- emdat_inbox %>%
 points_sf <- st_as_sf(points_df,
                       coords = c("lat","long"),
                       crs = st_crs(south_hem_shap))
-a_point <- st_sfc(st_point(c(-7,-34)),
+a_point <- st_sfc(st_point(c(-34,-7)),
                   crs = st_crs(south_hem_shap))
 st_contains(x = a_point,
             y = south_hem_shap,
             sparse = FALSE)
 st_crs(a_point)
-plot(south_hem_shap)
+ggplot()+
+  geom_sf(data = south_hem_shap, color = "black", fill = "purple")+
+  geom_sf(data = a_point, color = "blue")
 ```
 
 
