@@ -145,6 +145,13 @@ ggplot()+
 ```{r}
 region_plots("India_SriLanka")
 ```
+```{r}
+emdat_inbox %>%
+  group_by(`Dis No`) %>%
+  summarize(region_name = region, any_in_box = new_any(in_the_box)) %>%
+  group_by(any_in_box) %>%
+  summarize(count = n())
+```
 
 # USING SHAPEFILES
 
@@ -154,7 +161,79 @@ library(sf)
 north_hem_shap <- st_read(here("shape_data","NH_mask.shp"))
 south_hem_shap <- st_read(here("shape_data","SH_mask.shp"))
 ggplot()+
-  #geom_sf(data = world_map, color = "red")+
+  geom_sf(data = ne_countries(returnclass = "sf"), color = "red")+
   geom_sf(data = north_hem_shap, color = "green", fill = "skyblue")+
   geom_sf(data = south_hem_shap, color = "black", fill = "purple")
+
+  
+```
+
+## Inside shapefile?
+
+```{r}
+library(maptools)
+library(rgdal)
+library(sp)
+
+sp1 <- readShapeSpatial(here("shape_data","NH_mask.shp"),
+                        proj4string = CRS("+init=epsg:25832"))
+sp2 <- emdat_inbox %>%
+  filter(region == "India_SriLanka") %>%
+  drop_na(lat) %>%
+  select(lat,long) %>%
+  SpatialPoints(proj4string = CRS(proj4string(sp1)))
+
+gContains(sp1,sp2)
+
+```
+## In shape checking function
+```{r}
+shapesy <- list()
+shapesy[["nh"]] <- readShapeSpatial(here("shape_data","NH_mask.shp"),
+                        proj4string = CRS("+init=epsg:25832"))
+shapesy[["sh"]] <- readShapeSpatial(here("shape_data","SH_mask.shp"),
+                        proj4string = CRS("+init=epsg:25832"))
+
+in_shape <- function(lat,long){
+  if (lat>0){
+    sp1 <- shapesy[["nh"]]
+  }
+  else {
+    sp1 <- shapesy[["sh"]]
+  }
+sp2 <- tibble(lat,long) %>%
+  SpatialPoints(proj4string = CRS(proj4string(sp1)))
+
+gCovers(sp1,sp2)
+}
+
+emdat_inbox %>%
+  filter(region == "India_SriLanka") %>%
+  head(n = 6L) %>%
+  rowwise() %>%
+  mutate(in_shapey = in_shape(lat,long))
+  
+in_shape(11.93,79.82)
+```
+## Using SF
+```{r}
+points_df <- emdat_inbox %>%
+  drop_na(lat) %>%
+  head(n= 7L) %>%
+  select(lat,long)
+points_sf <- st_as_sf(points_df,
+                      coords = c("lat","long"),
+                      crs = st_crs(south_hem_shap))
+a_point <- st_sfc(st_point(c(-7,-34)),
+                  crs = st_crs(south_hem_shap))
+st_contains(x = a_point,
+            y = south_hem_shap,
+            sparse = FALSE)
+st_crs(a_point)
+plot(south_hem_shap)
+```
+
+
+```{r}
+
 ```
