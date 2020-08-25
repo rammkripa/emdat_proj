@@ -226,15 +226,17 @@ points_df <- emdat_inbox %>%
 points_sf <- st_as_sf(points_df,
                       coords = c("lat","long"),
                       crs = st_crs(south_hem_shap))
-a_point <- st_sfc(st_point(c(-34,-7)),
+a_point <- st_sfc(st_point(c(-34.88,-8.054)),
                   crs = st_crs(south_hem_shap))
-st_contains(x = a_point,
-            y = south_hem_shap,
+st_contains(y = a_point,
+            x = south_hem_shap,
             sparse = FALSE)
 st_crs(a_point)
 ggplot()+
+  geom_sf(data = braz_map, color = "green")+
   geom_sf(data = south_hem_shap, color = "black", fill = "purple")+
-  geom_sf(data = a_point, color = "blue")
+  geom_sf(data = a_point, color = "blue")+
+  coord_sf(xlim = c(-70, -20), ylim = c(-20, 0))
 ```
 
 
