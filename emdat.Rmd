@@ -35,7 +35,7 @@ read_emdat <- function(stringy_path){
 }
 files <- list.files(path = here("data"),
                     pattern = ".xlsx")
-
+files <- c("Vietnam.xlsx","Phil.xlsx")
 listy <- list()
 
 for (file_name in files){
@@ -236,15 +236,15 @@ brazil_dat %>%
 
 ```{r}
 library(tidytext)
-brazil_dirty <- emdat_clean %>%
-  filter(region == "Brazil")
+phil_dirty <- emdat_clean %>%
+  filter(region == "Phil")
 
 dummy_words <- c(
                  "cities","states","provinces","districts","municipalities","regions",
                  "city","state","province","district","municipality","region",
                  "near","-")
 
-brazil_clean <- brazil_dirty %>%
+phil_clean <-phil_dirty %>%
   unnest_tokens(output = "location_word",
                 input = Location, 
                 token = stringr::str_split,

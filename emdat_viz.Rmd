@@ -188,58 +188,104 @@ sp2 <- emdat_inbox %>%
 gContains(sp1,sp2)
 
 ```
-## In shape checking function
-```{r}
-shapesy <- list()
-shapesy[["nh"]] <- readShapeSpatial(here("shape_data","NH_mask.shp"),
-                        proj4string = CRS("+init=epsg:25832"))
-shapesy[["sh"]] <- readShapeSpatial(here("shape_data","SH_mask.shp"),
-                        proj4string = CRS("+init=epsg:25832"))
 
-in_shape <- function(lat,long){
-  if (lat>0){
-    sp1 <- shapesy[["nh"]]
-  }
-  else {
-    sp1 <- shapesy[["sh"]]
-  }
-sp2 <- tibble(lat,long) %>%
-  SpatialPoints(proj4string = CRS(proj4string(sp1)))
+## Using SF -- Testing
 
-gCovers(sp1,sp2)
-}
-
-emdat_inbox %>%
-  filter(region == "India_SriLanka") %>%
-  head(n = 6L) %>%
-  rowwise() %>%
-  mutate(in_shapey = in_shape(lat,long))
-  
-in_shape(11.93,79.82)
-```
-## Using SF
 ```{r}
 points_df <- emdat_inbox %>%
   drop_na(lat) %>%
   head(n= 7L) %>%
-  select(lat,long)
+  select(lat,long,in_the_box)
 points_sf <- st_as_sf(points_df,
-                      coords = c("lat","long"),
+                      coords = c("long","lat"),
                       crs = st_crs(south_hem_shap))
-a_point <- st_sfc(st_point(c(-34.88,-8.054)),
-                  crs = st_crs(south_hem_shap))
-st_contains(y = a_point,
+a_cont <- st_contains(y = points_sf,
             x = south_hem_shap,
             sparse = FALSE)
-st_crs(a_point)
 ggplot()+
   geom_sf(data = braz_map, color = "green")+
   geom_sf(data = south_hem_shap, color = "black", fill = "purple")+
-  geom_sf(data = a_point, color = "blue")+
-  coord_sf(xlim = c(-70, -20), ylim = c(-20, 0))
+  geom_sf(data = points_sf, color = "blue")+
+  coord_sf(xlim = c(-70, -20), ylim = c(-25, 0))
 ```
 
+## In shape checking function
 
 ```{r}
 
+in_shape <- function(lat,long){
+  if (is.na(lat)){
+    return(NA)
+  }
+  if (lat>0){
+    x1 <- north_hem_shap
+  }
+  else {
+    x1 <- south_hem_shap
+  }
+  pointy <- tibble(lat,long) %>%
+    st_as_sf(coords = c("long","lat"),
+           crs = st_crs(x1))
+  conty <- st_contains(y = pointy,
+                     x = x1,
+                     sparse = FALSE)
+  return(conty[1])
+}
+
+emdat_boxandshapes <- emdat_inbox %>%
+  rowwise() %>%
+  mutate(in_shapefile = in_shape(lat,long))
+  
+emdat_boxandshapes %>%
+  mutate(equalbox = (in_shapefile==in_the_box)) %>%
+  group_by(equalbox) %>%
+  summarize(count = n())
+```
+
+
+
+```{r}
+emdat_disasters <- emdat_boxandshapes %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_box = new_any(in_the_box),
+            any_in_shape = new_any(in_shapefile)) 
+
+emdat_disasters %>%
+  pivot_longer(cols = c("any_in_box","any_in_shape"),
+               names_to = "Type",
+               values_to = "Result") %>%
+  #mutate(box_shape = (any_in_box==any_in_shape)) %>%
+  group_by(Type,Result) %>%
+  summarize(count = n()) %>%
+  pivot_wider(names_from = "Result",
+              values_from = "count")
+
+
+```
+```{r}
+p1 <- emdat_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  ggplot()+
+  geom_sf(data = ne_countries(returnclass = "sf"))+
+  geom_point(mapping = aes(x = long, y = lat, color = in_shapefile))
+indsl
+```
+```{r}
+p2 <- emdat_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  ggplot()+
+  geom_sf(data = ne_countries(returnclass = "sf"))+
+  geom_point(mapping = aes(x = long, y = lat, color = in_reg))
+p2
+```
+
+```{r}
+ggplot()+
+  geom_sf(data = braz_map)+
+  geom_sf(data = south_hem_shap, color = "blue")+
+  geom_point(data = brazil_clean %>% filter(location_word=="northeast"), mapping = aes(x = long, y = lat))
+
+ggplot()+
+  geom_sf(data = braz_map)+
+  geom_point(data = emdat_boxandshapes %>% filter(location_word=="northeast"))
 ```

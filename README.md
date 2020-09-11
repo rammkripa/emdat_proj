@@ -11,14 +11,12 @@ Project for EMDAT data
 
 4. Convert Each name in **Locations** to a Lat Long and check if it is in the box for the given region.
 
-5. Filter out Locations that are not in their boxes
+5. Filter out Locations that are not in their boxes and Shapefiles
 
 6. Analyse Data
 
 ## Current Issues
 
-I am limited to 1000 API Requests per hour by the Geonames API.
-Since I make multiple requests per disaster, I am able to obtain data on only 394 disasters.
-The rest all generate an error of maximum requests exceeded!
+Importing and cleaning Vietnam and Phillipines
 
 ![Batman_gif](https://media.giphy.com/media/dJUtqIcqeyMvK/giphy.gif)
