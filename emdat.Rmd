@@ -264,11 +264,8 @@ viet_clean_bottom <- viet_dirty %>%
 
 viet_clean_bottom %>%
   unnest_wider(col = location_data) %>%
-  bind_rows(viet_clean_top_900) %>%
-  select(-c("location_data")) %>%
-  mutate(lat_is_na = is.na(lat)) %>%
-  group_by(lat_is_na) %>%
-  summarize(count = n())
+  bind_rows(viet_clean_top_900 %>%
+              unnest_wider(col= location_data)) %>%
   write_csv(here("clean_data","Vietnam.csv"))
 
 in_reg <- function(latitude,longitude,region_name){
