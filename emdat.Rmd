@@ -48,6 +48,11 @@ for (file_name in files){
 
 emdat_dirty <- bind_rows(listy,.id = "region")
 glimpse(emdat_dirty)
+emdat_dirty %>%
+  mutate(coords_exist = !is.na(Latitude)) %>%
+  group_by(coords_exist) %>%
+  summarize(count = n()) %>%
+  knitr::kable()
 ```
 
 ## Tidying The Data as Given
@@ -236,15 +241,15 @@ brazil_dat %>%
 
 ```{r}
 library(tidytext)
-phil_dirty <- emdat_clean %>%
-  filter(region == "Phil")
+viet_dirty <- emdat_clean %>%
+  filter(region == "Vietnam")
 
 dummy_words <- c(
                  "cities","states","provinces","districts","municipalities","regions",
                  "city","state","province","district","municipality","region",
                  "near","-")
 
-phil_clean <-phil_dirty %>%
+viet_clean_top_900 <- viet_dirty %>%
   unnest_tokens(output = "location_word",
                 input = Location, 
                 token = stringr::str_split,
@@ -254,7 +259,12 @@ phil_clean <-phil_dirty %>%
     pattern = str_c(dummy_words,collapse="|")))%>%
   filter(!str_detect(location_word, "^[0-9]*$")) %>%
   filter(location_word!=" ") %>%
+  head(n = 900L) %>%
   mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
+
+viet_clean_top_900 %>%
+  unnest_wider(col = location_data) %>%
+  write_csv(here("clean_data","Vietnam1.csv"))
 
 in_reg <- function(latitude,longitude,region_name){
   reg <- bounds %>%

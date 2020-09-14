@@ -71,8 +71,8 @@ emdat_inbox <- emdat_hydros %>%
          `Dis No` = as_factor(`Dis No`),
          `Start Month` = as.numeric(`Start Month`))
 
-emdat_inbox %>%
-  filter(region=="Brazil") %>%
+read_csv(here("clean_data","with_box_shape","Brazil_Clean.csv")) %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
   drop_na(lat) %>%
 ggplot()+
   geom_sf(data = braz_map)+
@@ -97,14 +97,16 @@ emdat_inbox %>%
 ```{r}
 library(patchwork)
 
-region_plots <- function(region_name){
+region_plots <- function(file_name){
+  tbl_req <- read_csv(here("clean_data","with_box_shape",file_name)) %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  drop_na(lat)
   
-diz <- emdat_inbox %>%
-  filter(region==region_name) %>%
+diz <- tbl_req %>%
   group_by(`Dis No`) %>%
   summarize(start_month = mean(`Start Month`),
             year = mean(Year),
-            any_in_box = new_any(in_the_box)) %>%
+            any_in_box = new_any(in_reg)) %>%
   mutate(start_month = as_factor(start_month)) %>%
   drop_na(any_in_box)
 
@@ -121,10 +123,10 @@ p2 <- diz %>%
   ggplot(mapping = aes(x = year, y = count))+
   geom_line()
 
-return(p1+p2+plot_annotation(title = glue::glue("Plots for ",region_name)))
+return(p1+p2+plot_annotation(title = glue::glue("Plots for ",file_name)))
 }
 
-region_plots("Brazil")
+region_plots("India_SriLanka_Clean.csv")
   
   
 ```
@@ -138,16 +140,16 @@ ind_map <- ne_countries(country = "India",
 sl_map <- ne_countries(country = "Sri Lanka",
                           returnclass = "sf")
 
-emdat_inbox %>%
-  filter(region=="India_SriLanka") %>%
+read_csv(here("clean_data","with_box_shape","India_SriLanka_Clean.csv")) %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
   drop_na(lat) %>%
 ggplot()+
   geom_sf(data = ind_map)+
   geom_sf(data = sl_map)+
-   geom_point(mapping = aes(y = lat, x = long, color = in_the_box))+
+   geom_point(mapping = aes(y = lat, x = long, color = in_reg))+
   labs(title = "Ind/Sl Map",
        color = "In Lat Long Box")
-
+TRUE & FALSE
 ```
 
 ```{r}
