@@ -249,7 +249,7 @@ dummy_words <- c(
                  "city","state","province","district","municipality","region",
                  "near","-")
 
-viet_clean_top_900 <- viet_dirty %>%
+viet_clean_bottom <- viet_dirty %>%
   unnest_tokens(output = "location_word",
                 input = Location, 
                 token = stringr::str_split,
@@ -259,12 +259,17 @@ viet_clean_top_900 <- viet_dirty %>%
     pattern = str_c(dummy_words,collapse="|")))%>%
   filter(!str_detect(location_word, "^[0-9]*$")) %>%
   filter(location_word!=" ") %>%
-  head(n = 900L) %>%
+  tail(n = 401L) %>%
   mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
 
-viet_clean_top_900 %>%
+viet_clean_bottom %>%
   unnest_wider(col = location_data) %>%
-  write_csv(here("clean_data","Vietnam1.csv"))
+  bind_rows(viet_clean_top_900) %>%
+  select(-c("location_data")) %>%
+  mutate(lat_is_na = is.na(lat)) %>%
+  group_by(lat_is_na) %>%
+  summarize(count = n())
+  write_csv(here("clean_data","Vietnam.csv"))
 
 in_reg <- function(latitude,longitude,region_name){
   reg <- bounds %>%
