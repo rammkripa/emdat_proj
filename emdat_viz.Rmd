@@ -25,7 +25,7 @@ indsl_clean <- read_csv(file = here("clean_data","India_SriLanka.csv"))%>%
 viet_clean <- read_csv(file = here("clean_data","Vietnam.csv"))%>%
   select(-c("Latitude","Longitude"))
 dis_types <- c("Flood","Storm","Landslide","Drought")
-emdat_hydros <- bind_rows(brazil_clean,indsl_clean) %>%
+emdat_hydros <- bind_rows(brazil_clean,indsl_clean,viet_clean) %>%
   filter(`Disaster Type` %in% dis_types)
 
 
@@ -36,7 +36,7 @@ bounds <- read_csv(file = here("data","region_boxes_csv.csv"))
 
 in_reg <- function(latitude,longitude,region_name){
   reg <- bounds %>%
-    filter(region == region_name)
+    filter(Region == region_name)
   in_box <- (latitude<=reg$Lat_max & latitude>=reg$Lat_min
                     &longitude<=reg$Lng_max & longitude>=reg$Lng_min)
   return(in_box)
@@ -61,17 +61,19 @@ new_any <- function(vec){
 
 # USING LAT LONG BOXES
 
-## Brazil Map
 ```{r}
-
-braz_map <- ne_countries(country = "Brazil",
-                         returnclass = "sf")
-
 emdat_inbox <- emdat_hydros %>%
   rowwise() %>%
   mutate(in_the_box = in_reg(lat,long,region),
          `Dis No` = as_factor(`Dis No`),
          `Start Month` = as.numeric(`Start Month`))
+```
+
+## Brazil Map
+```{r}
+
+braz_map <- ne_countries(country = "Brazil",
+                         returnclass = "sf")
 
 read_csv(here("clean_data","with_box_shape","Brazil_Clean.csv")) %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
@@ -92,8 +94,15 @@ ggplot()+
 emdat_inbox %>%
   group_by(`Dis No`) %>%
   summarize(region_name = region, any_in_box = new_any(in_the_box)) %>%
-  group_by(any_in_box) %>%
-  summarize(count = n())
+  group_by(region_name, any_in_box) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = region_name, y = count, fill = any_in_box))+
+  geom_col(position = "stack") +
+  coord_flip()+
+  labs(y = "Region",
+       x = "Count",
+       fill = "Result",
+       title = "Output")
 ```
 
 ```{r}
@@ -236,14 +245,20 @@ in_shape <- function(lat,long){
   return(conty[1])
 }
 
-emdat_boxandshapes <- emdat_inbox %>%
+viet_boxandshapes <- emdat_inbox %>%
+  filter(region == "Vietnam") %>%
   rowwise() %>%
   mutate(in_shapefile = in_shape(lat,long))
   
-emdat_boxandshapes %>%
+viet_boxandshapes %>%
   mutate(equalbox = (in_shapefile==in_the_box)) %>%
   group_by(equalbox) %>%
   summarize(count = n())
+
+viet_boxandshapes %>%
+  write_csv(here("clean_data","with_box_shape","Vietnam_Clean.csv"))
+
+
 ```
 
 
