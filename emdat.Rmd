@@ -230,11 +230,34 @@ brazil_dat %>%
        fill = "In Region of Interest")
 
 ```
+```{r}
+viet_clean %>%
+  mutate(is_na = is.na(lat)) %>%
+  group_by(is_na) %>%
+    summarize(count = n())
+```
 
 ```{r}
-brazil_dat %>%
-  filter(is.na(in_region)) %>%
-  select(Location,in_region)
+viet_missed <- viet_clean %>%
+  filter(is.na(lat)) %>%
+  mutate(location_word = str_remove(
+    string = location_word, 
+    pattern = str_c(dummy_words,collapse="|"))) %>%
+  unnest_tokens(output = "location_word",
+                input = location_word, 
+                token = stringr::str_split,
+                pattern = ",|\\(|\\)|;|\\+|(and)|(between)") %>%
+  mutate(location_word = str_replace_all(location_word,
+                                         pattern = "  ",
+                                         replacement = " ")) %>%
+  filter(location_word!=" ") %>%
+  mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
+  
+viet_missed %>%
+  mutate(is_na = is.na(lat)) %>%
+  group_by(is_na) %>%
+  summarize(count = n())
+  
 ```
 
 ### New Cleaning strategy
@@ -245,15 +268,15 @@ viet_dirty <- emdat_clean %>%
   filter(region == "Vietnam")
 
 dummy_words <- c(
-                 "cities","states","provinces","districts","municipalities","regions",
-                 "city","state","province","district","municipality","region",
+                 "cities","states","provinces","districts","municipalities","regions", "villages",
+                 "city","state","province","district","municipality","region", "township", "village",
                  "near","-")
 
 viet_clean_bottom <- viet_dirty %>%
   unnest_tokens(output = "location_word",
                 input = Location, 
                 token = stringr::str_split,
-                pattern = ",|\\(|\\)|;") %>%
+                pattern = ",|\\(|\\)|;|\\+|(and)") %>%
   mutate(location_word = str_remove(
     string = location_word, 
     pattern = str_c(dummy_words,collapse="|")))%>%

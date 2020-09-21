@@ -22,6 +22,8 @@ brazil_clean <- read_csv(file = here("clean_data","Brazil.csv")) %>%
   select(-c("Latitude","Longitude"))
 indsl_clean <- read_csv(file = here("clean_data","India_SriLanka.csv"))%>%
   select(-c("Latitude","Longitude"))
+viet_clean <- read_csv(file = here("clean_data","Vietnam.csv"))%>%
+  select(-c("Latitude","Longitude"))
 dis_types <- c("Flood","Storm","Landslide","Drought")
 emdat_hydros <- bind_rows(brazil_clean,indsl_clean) %>%
   filter(`Disaster Type` %in% dis_types)
@@ -34,7 +36,7 @@ bounds <- read_csv(file = here("data","region_boxes_csv.csv"))
 
 in_reg <- function(latitude,longitude,region_name){
   reg <- bounds %>%
-    filter(Region == region_name)
+    filter(region == region_name)
   in_box <- (latitude<=reg$Lat_max & latitude>=reg$Lat_min
                     &longitude<=reg$Lng_max & longitude>=reg$Lng_min)
   return(in_box)
