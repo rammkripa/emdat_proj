@@ -299,12 +299,20 @@ p2
 ```
 
 ```{r}
+viet_map <- ne_countries(country = "Vietnam",
+                          returnclass = "sf")
+viet_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
 ggplot()+
-  geom_sf(data = braz_map)+
-  geom_sf(data = south_hem_shap, color = "blue")+
-  geom_point(data = brazil_clean %>% filter(location_word=="northeast"), mapping = aes(x = long, y = lat))
+  geom_sf(data = viet_map)+
+  geom_point(mapping = aes(x = long, y = lat, color = in_reg))
+```
 
-ggplot()+
-  geom_sf(data = braz_map)+
-  geom_point(data = emdat_boxandshapes %>% filter(location_word=="northeast"))
+```{r}
+viet_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  group_by(`Dis No`) %>%
+  summarize(in_regg = new_any(in_reg)) %>%
+  group_by(in_regg) %>%
+  summarize(count = n())
 ```
