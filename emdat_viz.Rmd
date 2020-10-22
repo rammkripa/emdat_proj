@@ -315,4 +315,19 @@ viet_boxandshapes %>%
   summarize(in_regg = new_any(in_reg)) %>%
   group_by(in_regg) %>%
   summarize(count = n())
+phil1
+```
+```{r}
+phil1 <- read_csv(here("clean_data","Phil900.csv"))
+phil2 <- read_csv(here("clean_data","Phil900to1800.csv"))
+phil3 <- read_csv(here("clean_data","Phil1800to2700.csv"))
+phil_map <- ne_countries(country = "Philippines",
+                          returnclass = "sf")
+  ggplot() +
+     geom_sf(data = phil_map)+
+  geom_point(data = phil1, mapping = aes(x = long, y = lat, color = "blue"))+
+    geom_point(data = phil2, mapping = aes(x = long, y = lat, color = "blue"))+
+    geom_point(data = phil3, mapping = aes(x = long, y = lat, color = "blue"))
+ 
+
 ```
