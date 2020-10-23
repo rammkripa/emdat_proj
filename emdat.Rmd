@@ -277,7 +277,7 @@ dummy_words <- c(
                  "city","state","province","district","municipality","region", "township", "village",
                  "near")
 
-phil_clean3600to4500 <- phil_dirty %>%
+phil_clean4500toend <- phil_dirty %>%
   unnest_tokens(output = "location_word",
                 input = Location, 
                 token = stringr::str_split,
@@ -287,13 +287,12 @@ phil_clean3600to4500 <- phil_dirty %>%
     pattern = str_c(dummy_words,collapse="|"))) %>%
   filter(!str_detect(location_word, "^[0-9 ]+$")) %>%
   filter(!str_detect(location_word, "^ +$")) %>%
-  head(n = 4500L) %>%
-  tail(n = 900L) %>%
+  tail(n = 5291 - 4500) %>%
   mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
 
-phil_clean3600to4500 %>%
+phil_clean4500toend %>%
   unnest_wider(col = location_data) %>%
-  write_csv(here("clean_data","Phil3600to4500.csv"))
+  write_csv(here("clean_data","Phil4500toend.csv"))
 mutate(latisna = is.na(lat)) %>%
   group_by(latisna) %>%
   summarize(count = n())
