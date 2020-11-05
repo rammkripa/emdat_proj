@@ -62,7 +62,7 @@ new_any <- function(vec){
 # USING LAT LONG BOXES
 
 ```{r}
-emdat_inbox <- emdat_hydros %>%
+Phil_inbox <- Phil_data %>%
   rowwise() %>%
   mutate(in_the_box = in_reg(lat,long,region),
          `Dis No` = as_factor(`Dis No`),
@@ -83,9 +83,19 @@ ggplot()+
    geom_point(mapping = aes(y = lat, x = long, color = in_the_box))+
   labs(title = "Brazil Map",
        color = "In Lat Long Box")
+files <- c("Phil900.csv","Phil900to1800.csv","Phil1800to2700.csv","Phil2700to3600.csv","Phil3600to4500.csv","Phil4500toend.csv")
+listy <- list()
 
-
+for (file_name in files){
   
+  listy[[file_name]] <- read_csv(here("clean_data",file_name))
+  
+}
+
+Phil_data = bind_rows(listy)
+Phil_data %>%
+  write_csv(here("clean_data","Phil.csv"))
+
 
 
 ```
@@ -245,12 +255,13 @@ in_shape <- function(lat,long){
   return(conty[1])
 }
 
-viet_boxandshapes <- emdat_inbox %>%
-  filter(region == "Vietnam") %>%
+Phil_boxandshapes <- Phil_inbox %>%
+  #filter(region == "Vietnam") %>%
   rowwise() %>%
   mutate(in_shapefile = in_shape(lat,long))
   
-viet_boxandshapes %>%
+Phil_boxandshapes %>%
+  ggplot(mapping = aes(x = long, y = lat))
   mutate(equalbox = (in_shapefile==in_the_box)) %>%
   group_by(equalbox) %>%
   summarize(count = n())
@@ -299,12 +310,18 @@ p2
 ```
 
 ```{r}
-viet_map <- ne_countries(country = "Vietnam",
+Phil_map <- ne_countries(country = "Philippines",
                           returnclass = "sf")
-viet_boxandshapes %>%
+Phil_boxandshapes %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
+  write_csv(here("clean_data","with_box_shape","Phil_clean.csv"))
+  
+  group_by(`Dis No`) %>%
+  summarize(val = new_any(in_reg)) %>%
+  group_by(val) %>%
+  summarize(count = n())
 ggplot()+
-  geom_sf(data = viet_map)+
+  geom_sf(data = Phil_map)+
   geom_point(mapping = aes(x = long, y = lat, color = in_reg))
 ```
 
@@ -316,6 +333,11 @@ viet_boxandshapes %>%
   group_by(in_regg) %>%
   summarize(count = n())
 phil1
+ggplot()+
+  geom_sf(data = Phil_map, color = "green")+
+  geom_sf(data = north_hem_shap, color = "black", fill = "purple")+
+  xlim(110, 130)+
+  ylim(0,25)
 ```
 ```{r}
 phil1 <- read_csv(here("clean_data","Phil900.csv"))
