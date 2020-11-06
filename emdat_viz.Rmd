@@ -62,7 +62,8 @@ new_any <- function(vec){
 # USING LAT LONG BOXES
 
 ```{r}
-Phil_inbox <- Phil_data %>%
+ven_inbox <- ven_full %>%
+  unnest_wider(col = location_data) %>%
   rowwise() %>%
   mutate(in_the_box = in_reg(lat,long,region),
          `Dis No` = as_factor(`Dis No`),
@@ -96,7 +97,12 @@ Phil_data = bind_rows(listy)
 Phil_data %>%
   write_csv(here("clean_data","Phil.csv"))
 
-
+list2 = list()
+list2[["ven1"]] = ven_clean900
+list2[["ven2"]] = ven_clean900toend
+ven_full <- bind_rows(list2)
+ven_full %>%
+  
 
 ```
 
@@ -147,7 +153,7 @@ p2 <- diz %>%
 return(p1+p2+plot_annotation(title = glue::glue("Plots for ",file_name)))
 }
 
-region_plots("India_SriLanka_Clean.csv")
+region_plots("Brazil_Clean.csv")
   
   
 ```
@@ -255,13 +261,13 @@ in_shape <- function(lat,long){
   return(conty[1])
 }
 
-Phil_boxandshapes <- Phil_inbox %>%
+ven_boxandshapes <- ven_inbox %>%
   #filter(region == "Vietnam") %>%
   rowwise() %>%
   mutate(in_shapefile = in_shape(lat,long))
   
-Phil_boxandshapes %>%
-  ggplot(mapping = aes(x = long, y = lat))
+ven_boxandshapes %>%
+  #ggplot(mapping = aes(x = long, y = lat))
   mutate(equalbox = (in_shapefile==in_the_box)) %>%
   group_by(equalbox) %>%
   summarize(count = n())
@@ -310,7 +316,9 @@ p2
 ```
 
 ```{r}
-Phil_map <- ne_countries(country = "Philippines",
+ven_map <- ne_countries(country = "Venezuela",
+                          returnclass = "sf")
+col_map <- ne_countries(country = "Colombia",
                           returnclass = "sf")
 Phil_boxandshapes %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
@@ -326,18 +334,38 @@ ggplot()+
 ```
 
 ```{r}
-viet_boxandshapes %>%
+ven_boxandshapes %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
   group_by(`Dis No`) %>%
   summarize(in_regg = new_any(in_reg)) %>%
   group_by(in_regg) %>%
   summarize(count = n())
 phil1
-ggplot()+
-  geom_sf(data = Phil_map, color = "green")+
-  geom_sf(data = north_hem_shap, color = "black", fill = "purple")+
-  xlim(110, 130)+
-  ylim(0,25)
+ven_done = ven_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile)
+p1 <- ggplot()+
+  geom_sf(data = ven_map, color = "green")+
+  geom_sf(data = col_map, color = "green")+
+  #geom_sf(data = south_hem_shap, color = "black", fill = "purple")#+
+  geom_point(data = ven_done, mapping = aes(x = long, y = lat, color = in_reg))+
+  ggtitle("In Reg")
+p2 <- ggplot()+
+  geom_sf(data = ven_map, color = "green")+
+  geom_sf(data = col_map, color = "green")+
+  #geom_sf(data = south_hem_shap, color = "black", fill = "purple")#+
+  geom_point(data = ven_done, mapping = aes(x = long, y = lat, color = in_shapefile))+
+  ggtitle("In Shape")
+p3 <- ggplot()+
+  geom_sf(data = ven_map, color = "green")+
+  geom_sf(data = col_map, color = "green")+
+  #geom_sf(data = south_hem_shap, color = "black", fill = "purple")#+
+  geom_point(data = ven_done, mapping = aes(x = long, y = lat, color = in_the_box))+
+  ggtitle("In Box")
+p1+(p2/p3)
+  #xlim(-80, -50)+
+  ##ylim(-25,10)
+ven_done %>%
+  write_csv(here("clean_data", "with_box_shape","Venezuela_Colombia_Clean.csv"))
 ```
 ```{r}
 phil1 <- read_csv(here("clean_data","Phil900.csv"))
