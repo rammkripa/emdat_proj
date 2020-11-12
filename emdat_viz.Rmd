@@ -62,7 +62,7 @@ new_any <- function(vec){
 # USING LAT LONG BOXES
 
 ```{r}
-ven_inbox <- ven_full %>%
+tan_inbox <- tan_final %>%
   unnest_wider(col = location_data) %>%
   rowwise() %>%
   mutate(in_the_box = in_reg(lat,long,region),
@@ -261,19 +261,19 @@ in_shape <- function(lat,long){
   return(conty[1])
 }
 
-ven_boxandshapes <- ven_inbox %>%
+tan_boxandshapes <- tan_inbox %>%
   #filter(region == "Vietnam") %>%
   rowwise() %>%
   mutate(in_shapefile = in_shape(lat,long))
   
-ven_boxandshapes %>%
+tan_boxandshapes %>%
   #ggplot(mapping = aes(x = long, y = lat))
   mutate(equalbox = (in_shapefile==in_the_box)) %>%
   group_by(equalbox) %>%
   summarize(count = n())
 
-viet_boxandshapes %>%
-  write_csv(here("clean_data","with_box_shape","Vietnam_Clean.csv"))
+tan_boxandshapes %>%
+  write_csv(here("clean_data","with_box_shape","Tanzania_Kenya_Clean.csv"))
 
 
 ```

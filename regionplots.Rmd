@@ -1,0 +1,69 @@
+---
+title: "RegionPlots"
+author: "Ram Mukund Kripa"
+date: "11/12/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(patchwork)
+library(tidytext)
+
+region_plots <- function(file_name){
+  tbl_req <- read_csv(here("clean_data","with_box_shape",file_name)) %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  drop_na(lat)
+  
+diz <- tbl_req %>%
+  group_by(`Dis No`) %>%
+  summarize(start_month = mean(`Start Month`),
+            year = mean(Year),
+            any_in_box = new_any(in_reg)) %>%
+  mutate(start_month = as_factor(start_month)) %>%
+  drop_na(any_in_box)
+
+p1 <- diz %>%
+  group_by(any_in_box,start_month) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = start_month, y = count, fill = any_in_box))+
+  geom_col(position = "dodge")
+
+p2 <- diz %>%
+  filter(any_in_box == TRUE) %>%
+  group_by(year) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = year, y = count))+
+  geom_line()
+
+return(p1+p2+plot_annotation(title = glue::glue("Plots for ",file_name)))
+}
+
+
+```
+
+# Brazil
+
+```{r}
+region_plots("Brazil_Clean.csv")
+```
+
+```{r}
+region_plots("India_SriLanka_Clean.csv")
+```
+
+```{r}
+region_plots("Vietnam_Clean.csv")
+```
+
+```{r}
+region_plots("Phil_Clean.csv")
+```
+
+```{r}
+region_plots("Tanzania_Kenya_Clean.csv")
+```
