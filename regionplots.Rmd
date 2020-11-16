@@ -41,6 +41,7 @@ p2 <- diz %>%
   geom_line()
 
 return(p1+p2+plot_annotation(title = glue::glue("Plots for ",file_name)))
+# Disaster Type / How many disasters --> p3
 }
 
 
@@ -66,4 +67,7 @@ region_plots("Phil_Clean.csv")
 
 ```{r}
 region_plots("Tanzania_Kenya_Clean.csv")
+```
+```{r}
+region_plots("Venezuela_Colombia_Clean.csv")
 ```

@@ -261,10 +261,7 @@ in_shape <- function(lat,long){
   return(conty[1])
 }
 
-tan_boxandshapes <- tan_inbox %>%
-  #filter(region == "Vietnam") %>%
-  rowwise() %>%
-  mutate(in_shapefile = in_shape(lat,long))
+tan_boxandshapes <- read_csv(here("clean_data","with_box_shape","Tanzania_Kenya_Clean.csv"))
   
 tan_boxandshapes %>%
   #ggplot(mapping = aes(x = long, y = lat))
@@ -334,7 +331,7 @@ ggplot()+
 ```
 
 ```{r}
-ven_boxandshapes %>%
+tan_boxandshapes %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
   group_by(`Dis No`) %>%
   summarize(in_regg = new_any(in_reg)) %>%
@@ -368,16 +365,42 @@ ven_done %>%
   write_csv(here("clean_data", "with_box_shape","Venezuela_Colombia_Clean.csv"))
 ```
 ```{r}
-phil1 <- read_csv(here("clean_data","Phil900.csv"))
-phil2 <- read_csv(here("clean_data","Phil900to1800.csv"))
-phil3 <- read_csv(here("clean_data","Phil1800to2700.csv"))
-phil_map <- ne_countries(country = "Philippines",
+library(countrycode)
+countryname("Tanzania")
+tan_map <- ne_countries(country = "United Republic of Tanzania",
                           returnclass = "sf")
-  ggplot() +
-     geom_sf(data = phil_map)+
-  geom_point(data = phil1, mapping = aes(x = long, y = lat, color = "blue"))+
-    geom_point(data = phil2, mapping = aes(x = long, y = lat, color = "blue"))+
-    geom_point(data = phil3, mapping = aes(x = long, y = lat, color = "blue"))
+ken_map <- ne_countries(country = "Kenya",
+                          returnclass = "sf")
+tan_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+ggplot() +
+  geom_sf(data = tan_map) +
+  geom_sf(data = ken_map) +
+  geom_point(mapping = aes(x = long, y = lat, color = in_reg))
  
 
+```
+
+```{r}
+tan_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+ggplot() +
+  geom_sf(data = south_hem_shap, color = "black", fill = "yellow")+
+  #geom_sf(data = tan_map, color = "green") +
+  #geom_sf(data = ken_map, color = "green") +
+  geom_point(mapping = aes(x = long, y = lat, color = in_reg)) +
+  xlim(20, 55) +
+  ylim(-15, 0)
+  
+```
+```{r}
+1997-0262-TZA
+tan_boxandshapes %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  group_by(`Dis No`) %>%
+  summarize(dis_type = `Disaster Type`) %>%
+  group_by(dis_type) %>% # Disaster Type / How many disasters
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = dis_type, y = count)) +
+  geom_col()
 ```
