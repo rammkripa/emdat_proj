@@ -35,7 +35,7 @@ read_emdat <- function(stringy_path){
 }
 files <- list.files(path = here("data"),
                     pattern = ".xlsx")
-files <- c("Tanzania_Kenya.xlsx","Venezuela_Colombia.xlsx")
+files <- c("Malaysia_Singapore_Thai.xlsx","Venezuela_Colombia.xlsx")
 listy <- list()
 
 for (file_name in files){

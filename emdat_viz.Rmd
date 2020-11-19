@@ -62,7 +62,7 @@ new_any <- function(vec){
 # USING LAT LONG BOXES
 
 ```{r}
-tan_inbox <- tan_final %>%
+mal_inbox <- mal_final %>%
   unnest_wider(col = location_data) %>%
   rowwise() %>%
   mutate(in_the_box = in_reg(lat,long,region),
@@ -133,7 +133,8 @@ diz <- tbl_req %>%
   group_by(`Dis No`) %>%
   summarize(start_month = mean(`Start Month`),
             year = mean(Year),
-            any_in_box = new_any(in_reg)) %>%
+            any_in_box = new_any(in_reg),
+            dis_type = first(`Disaster Type`)) %>%
   mutate(start_month = as_factor(start_month)) %>%
   drop_na(any_in_box)
 
@@ -196,6 +197,9 @@ ggplot()+
   geom_sf(data = north_hem_shap, color = "green", fill = "skyblue")+
   geom_sf(data = south_hem_shap, color = "black", fill = "purple")
 
+mal_boxandshape <- mal_inbox %>%
+  rowwise() %>%
+  mutate(in_shapefile = in_shape(lat, long))
   
 ```
 
@@ -317,9 +321,9 @@ ven_map <- ne_countries(country = "Venezuela",
                           returnclass = "sf")
 col_map <- ne_countries(country = "Colombia",
                           returnclass = "sf")
-Phil_boxandshapes %>%
+mal_boxandshape %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
-  write_csv(here("clean_data","with_box_shape","Phil_clean.csv"))
+  write_csv(here("clean_data","with_box_shape","Malaysia_Singapore_Thai_clean.csv"))
   
   group_by(`Dis No`) %>%
   summarize(val = new_any(in_reg)) %>%
@@ -331,7 +335,7 @@ ggplot()+
 ```
 
 ```{r}
-tan_boxandshapes %>%
+mal_boxandshape %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
   group_by(`Dis No`) %>%
   summarize(in_regg = new_any(in_reg)) %>%
@@ -367,16 +371,21 @@ ven_done %>%
 ```{r}
 library(countrycode)
 countryname("Tanzania")
-tan_map <- ne_countries(country = "United Republic of Tanzania",
+mal_map <- ne_countries(country = "Malaysia",
                           returnclass = "sf")
-ken_map <- ne_countries(country = "Kenya",
+#sin_map <- ne_countries(country = "Republic of Singapore",
+#                          returnclass = "sf")
+thai_map <- ne_countries(country = "Thailand",
                           returnclass = "sf")
-tan_boxandshapes %>%
-  mutate(in_reg = in_the_box & in_shapefile) %>%
+mal_boxandshape %>%
+mutate(in_reg = in_the_box & in_shapefile) %>%
 ggplot() +
-  geom_sf(data = tan_map) +
-  geom_sf(data = ken_map) +
-  geom_point(mapping = aes(x = long, y = lat, color = in_reg))
+  geom_sf(data = north_hem_shap) +
+  #geom_sf(data = sin_map) +
+  #geom_sf(data = thai_map) +
+  geom_point(mapping = aes(x = long, y = lat, color = in_reg))+
+  xlim(95, 120)+
+  ylim(0,22)
  
 
 ```

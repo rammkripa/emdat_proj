@@ -13,7 +13,21 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(patchwork)
 library(tidytext)
-
+new_any <- function(vec){
+  resy <- NA
+  for (i in vec){
+    if (is.na(i)){
+      
+    }
+    else if (i==TRUE) {
+      return(TRUE)
+    }
+    else{
+      resy <- FALSE
+    }
+  }
+  return(resy)
+}
 region_plots <- function(file_name){
   tbl_req <- read_csv(here("clean_data","with_box_shape",file_name)) %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
@@ -23,7 +37,8 @@ diz <- tbl_req %>%
   group_by(`Dis No`) %>%
   summarize(start_month = mean(`Start Month`),
             year = mean(Year),
-            any_in_box = new_any(in_reg)) %>%
+            any_in_box = new_any(in_reg),
+            type = first(`Disaster Type`)) %>%
   mutate(start_month = as_factor(start_month)) %>%
   drop_na(any_in_box)
 
@@ -40,7 +55,14 @@ p2 <- diz %>%
   ggplot(mapping = aes(x = year, y = count))+
   geom_line()
 
-return(p1+p2+plot_annotation(title = glue::glue("Plots for ",file_name)))
+p3 <- diz %>%
+  group_by(type) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = type, y = count)) +
+  geom_col()
+  
+
+return(p1+(p2/p3)+plot_annotation(title = glue::glue("Plots for ",file_name)))
 # Disaster Type / How many disasters --> p3
 }
 
@@ -70,4 +92,8 @@ region_plots("Tanzania_Kenya_Clean.csv")
 ```
 ```{r}
 region_plots("Venezuela_Colombia_Clean.csv")
+```
+
+```{r}
+region_plots("Malaysia_Singapore_Thai_Clean.csv")
 ```
