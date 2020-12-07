@@ -35,7 +35,7 @@ read_emdat <- function(stringy_path){
 }
 files <- list.files(path = here("data"),
                     pattern = ".xlsx")
-files <- c("Malaysia_Singapore_Thai.xlsx","Venezuela_Colombia.xlsx")
+files <- c("Central_America.xlsx","Venezuela_Colombia.xlsx")
 listy <- list()
 
 for (file_name in files){
@@ -269,15 +269,15 @@ phil_dirty
 
 ```{r}
 library(tidytext)
-tan_dirty <- emdat_clean %>%
-  filter(region == "Tanzania_Kenya")
+central_dirty <- emdat_clean %>%
+  filter(region == "Central_America")
 
 dummy_words <- c(
                  "cities","states","provinces","districts","municipalities","regions", "villages",
                  "city","state","province","district","municipality","region", "township", "village",
                  "near", "department")
 
-tan_clean900toend <- tan_dirty %>%
+central_clean900toend <- central_dirty %>%
   unnest_tokens(output = "location_word",
                 input = Location, 
                 token = stringr::str_split,
@@ -287,17 +287,17 @@ tan_clean900toend <- tan_dirty %>%
     pattern = str_c(dummy_words,collapse="|"))) %>%
   filter(!str_detect(location_word, "^[0-9 ]+$")) %>%
   filter(!str_detect(location_word, "^ +$")) %>%
-  tail(n = 1168 - 901) %>%
+  tail(n = 1820 - 900) %>%
   mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
 
 listy = list()
-listy[["tan1"]] = tan_clean900
-listy[["tan2"]] = tan_clean900toend
-tan_final = bind_rows(listy)
+listy[["tan1"]] = central_clean900
+listy[["tan2"]] = central_clean900toend
+central_final = bind_rows(listy)
 
-tan_final %>%
+central_final %>%
   unnest_wider(col = location_data) %>%
-  write_csv(here("clean_data","without_box_shape","Tanzania_Kenya.csv"))
+  write_csv(here("clean_data","without_box_shape","Central_America.csv"))
 mutate(latisna = is.na(lat)) %>%
   group_by(latisna) %>%
   summarize(count = n())

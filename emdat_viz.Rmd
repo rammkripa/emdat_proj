@@ -62,7 +62,7 @@ new_any <- function(vec){
 # USING LAT LONG BOXES
 
 ```{r}
-mal_inbox <- mal_final %>%
+central_inbox <- central_final %>%
   unnest_wider(col = location_data) %>%
   rowwise() %>%
   mutate(in_the_box = in_reg(lat,long,region),
@@ -197,9 +197,13 @@ ggplot()+
   geom_sf(data = north_hem_shap, color = "green", fill = "skyblue")+
   geom_sf(data = south_hem_shap, color = "black", fill = "purple")
 
-mal_boxandshape <- mal_inbox %>%
+central_boxandshape <- central_inbox %>%
   rowwise() %>%
   mutate(in_shapefile = in_shape(lat, long))
+
+central_boxandshape %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  write_csv(here("clean_data", "with_box_shape", "Central_America_Clean.csv"))
   
 ```
 

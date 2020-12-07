@@ -53,16 +53,26 @@ p2 <- diz %>%
   group_by(year) %>%
   summarize(count = n()) %>%
   ggplot(mapping = aes(x = year, y = count))+
-  geom_line()
+  geom_point()+
+  geom_line(color = "blue")
 
 p3 <- diz %>%
+  filter(any_in_box == TRUE) %>%
   group_by(type) %>%
   summarize(count = n()) %>%
   ggplot(mapping = aes(x = type, y = count)) +
   geom_col()
+
+p4 <- diz %>%
+  filter(any_in_box == TRUE) %>%
+  group_by(start_month,type) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = start_month, y = count, fill = type))+
+  geom_col(position = "dodge")
+  
   
 
-return(p1+(p2/p3)+plot_annotation(title = glue::glue("Plots for ",file_name)))
+return(((p1+(p2/p3))/p4)+plot_annotation(title = glue::glue("Plots for ",file_name)))
 # Disaster Type / How many disasters --> p3
 }
 
@@ -96,4 +106,7 @@ region_plots("Venezuela_Colombia_Clean.csv")
 
 ```{r}
 region_plots("Malaysia_Singapore_Thai_Clean.csv")
+```
+```{r}
+region_plots("Central_America_Clean.csv")
 ```
