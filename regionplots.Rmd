@@ -1,18 +1,21 @@
 ---
 title: "RegionPlots"
 author: "Ram Mukund Kripa"
-date: "11/12/2020"
-output: html_document
+date: "12/07/2020"
+output:
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, error = FALSE)
 ```
 
 ```{r}
 library(tidyverse)
 library(patchwork)
 library(tidytext)
+library(here)
 new_any <- function(vec){
   resy <- NA
   for (i in vec){
@@ -44,35 +47,35 @@ diz <- tbl_req %>%
 
 p1 <- diz %>%
   group_by(any_in_box,start_month) %>%
-  summarize(count = n()) %>%
-  ggplot(mapping = aes(x = start_month, y = count, fill = any_in_box))+
+  summarize(disaster_count = n()) %>%
+  ggplot(mapping = aes(x = start_month, y = disaster_count, fill = any_in_box))+
   geom_col(position = "dodge")
 
 p2 <- diz %>%
   filter(any_in_box == TRUE) %>%
   group_by(year) %>%
-  summarize(count = n()) %>%
-  ggplot(mapping = aes(x = year, y = count))+
+  summarize(disaster_count = n()) %>%
+  ggplot(mapping = aes(x = year, y = disaster_count))+
   geom_point()+
   geom_line(color = "blue")
 
 p3 <- diz %>%
   filter(any_in_box == TRUE) %>%
   group_by(type) %>%
-  summarize(count = n()) %>%
-  ggplot(mapping = aes(x = type, y = count)) +
+  summarize(disaster_count = n()) %>%
+  ggplot(mapping = aes(x = type, y = disaster_count)) +
   geom_col()
 
 p4 <- diz %>%
   filter(any_in_box == TRUE) %>%
   group_by(start_month,type) %>%
-  summarize(count = n()) %>%
-  ggplot(mapping = aes(x = start_month, y = count, fill = type))+
+  summarize(disaster_count = n()) %>%
+  ggplot(mapping = aes(x = start_month, y = disaster_count, fill = type))+
   geom_col(position = "dodge")
   
   
 
-return(((p1+(p2/p3))/p4)+plot_annotation(title = glue::glue("Plots for ",file_name)))
+return((p1+ p2)/(p3 + p4)+plot_annotation(title = glue::glue("Plots for ",file_name)))
 # Disaster Type / How many disasters --> p3
 }
 
@@ -85,28 +88,44 @@ return(((p1+(p2/p3))/p4)+plot_annotation(title = glue::glue("Plots for ",file_na
 region_plots("Brazil_Clean.csv")
 ```
 
+# South Asia
+
 ```{r}
 region_plots("India_SriLanka_Clean.csv")
 ```
+
+# Vietnam
 
 ```{r}
 region_plots("Vietnam_Clean.csv")
 ```
 
+# Philippines
+
 ```{r}
 region_plots("Phil_Clean.csv")
 ```
 
+# Kenya Tanzania
+
 ```{r}
 region_plots("Tanzania_Kenya_Clean.csv")
 ```
+
+# Venezuela Colombia
+
 ```{r}
 region_plots("Venezuela_Colombia_Clean.csv")
 ```
 
+# Malaysia Singapore Thailand
+
 ```{r}
 region_plots("Malaysia_Singapore_Thai_Clean.csv")
 ```
+
+# Central America
+
 ```{r}
 region_plots("Central_America_Clean.csv")
 ```
