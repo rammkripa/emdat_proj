@@ -5,6 +5,7 @@ date: "12/07/2020"
 output:
   html_document: default
   pdf_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -64,7 +65,8 @@ p3 <- diz %>%
   group_by(type) %>%
   summarize(disaster_count = n()) %>%
   ggplot(mapping = aes(x = type, y = disaster_count)) +
-  geom_col()
+  geom_col()+
+  coord_flip()
 
 p4 <- diz %>%
   filter(any_in_box == TRUE) %>%

@@ -1,0 +1,115 @@
+---
+title: "EMDAT Analysis"
+author: "Ram Mukund Kripa"
+date: "12/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages
+
+```{r}
+library(tidyverse)
+library(sf)
+library(here)
+```
+
+## Loading In the Data
+
+```{r}
+
+files_names <- list.files(path = here("clean_data","with_box_shape"), pattern = ".csv")
+listy <- list()
+
+for (file_name in files_names){
+  file_name_trimmed <- tools::file_path_sans_ext(basename(file_name))
+  listy[[file_name_trimmed]] <- read_csv(here("clean_data", "with_box_shape", file_name))
+}
+
+emdat_dat <- bind_rows(listy, .id = NULL)
+glimpse(emdat_dat)
+new_any <- function(vec){
+  resy <- NA
+  for (i in vec){
+    if (is.na(i)){
+      
+    }
+    else if (i==TRUE) {
+      return(TRUE)
+    }
+    else{
+      resy <- FALSE
+    }
+  }
+  return(resy)
+}
+```
+
+## Analysis
+
+### NAs at the Location Level
+
+```{r}
+
+emdat_dat %>%
+  mutate(in_reg = in_the_box& in_shapefile) %>%
+  group_by(in_reg) %>%
+  summarize(count = n()) %>%
+  mutate(perc = count*100/sum(count))
+
+```
+
+### NAs at the Disaster level
+
+```{r}
+
+emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg)) %>%
+  group_by(any_in_reg) %>%
+  summarize(count = n()) %>%
+  mutate(perc = count*100/sum(count))
+
+```
+
+## Using "EFFECTIVE MONTH" to counter southern hemisphere
+
+```{r}
+emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  mutate(south_hem = lat < 0) %>%
+  mutate(south_hem = as.numeric(south_hem)) %>%
+  mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
+  mutate(start_month_effective = start_month_effective %% 12) %>%
+  mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective)) %>%
+  group_by(any_in_reg, start_month_eff) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = start_month_eff, y = count, fill = any_in_reg))+
+  geom_col(position = "dodge")
+  
+```
+### Effective Month and Locations per year
+
+```{r}
+emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  mutate(south_hem = lat < 0) %>%
+  mutate(south_hem = as.numeric(south_hem)) %>%
+  mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
+  mutate(start_month_effective = start_month_effective %% 12) %>%
+  mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region)) %>%
+  filter(start_month_eff > 7) %>%
+  filter(any_in_reg == TRUE) %>%
+  group_by(reg, year) %>%
+  summarize(count = n()) %>%
+  ggplot(mapping = aes(x = year, y = count, fill = reg)) +
+  geom_col(position = "dodge")
+```

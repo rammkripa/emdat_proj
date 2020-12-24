@@ -297,7 +297,7 @@ central_final = bind_rows(listy)
 
 central_final %>%
   unnest_wider(col = location_data) %>%
-  write_csv(here("clean_data","without_box_shape","Central_America.csv"))
+  #write_csv(here("clean_data","without_box_shape","Central_America.csv"))
 mutate(latisna = is.na(lat)) %>%
   group_by(latisna) %>%
   summarize(count = n())
