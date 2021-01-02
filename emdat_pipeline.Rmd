@@ -1,0 +1,151 @@
+---
+title: "EMDAT Pipeline"
+author: "Ram Mukund Kripa"
+date: "1/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Process to convert ordinary EMDAT Excel File to Geocoded CSV for Analysis
+
+## Packages:
+
+```{r packages}
+
+library(tidyverse)
+library(here)
+library(gganimate)
+library(readxl)
+
+```
+
+### Reading the Data
+
+```{r readdata}
+read_emdat <- function(stringy_path){
+  read_excel(path = stringy_path,
+             skip = 6,
+             col_names = TRUE)
+}
+
+files <- list.files(path = here("data"),
+                    pattern = ".xlsx")
+listy <- list()
+
+for (file_name in files){
+  
+  file_name_trimmed <- tools::file_path_sans_ext(basename(file_name))
+  
+  listy[[file_name_trimmed]] <- read_emdat(here("data",file_name))
+  
+}
+
+emdat_dirty <- bind_rows(listy,.id = "region")
+glimpse(emdat_dirty)
+```
+
+### The Problem
+
+```{r theproblem}
+emdat_dirty %>%
+  mutate(coords_exist = !is.na(Latitude)) %>%
+  group_by(coords_exist) %>%
+  summarize(count = n()) %>%
+  knitr::kable()
+```
+
+### Minor Cleaning
+
+```{r cleany}
+emdat_clean <- emdat_dirty %>%
+  drop_na(Location) %>%
+  mutate(Latitude = as.numeric(Latitude),
+         Longitude = as.numeric(Longitude),
+         Year = as.numeric(Year),
+         `Start Month` = as_factor(`Start Month`)
+         )
+```
+
+### GeoCoding: The Sauce
+
+```{r latlongfunc}
+
+library(geonames)
+library(countrycode)
+## cached
+cache_list = list()
+get_lat_long <- function(location_name,country_name){
+  if (location_name %in% names(cache_list)){
+    return(cache_list[[location_name]])
+  }
+  country_code <- countrycode(sourcevar = country_name,
+                              origin = "country.name",
+                              destination = "iso2c")
+  options(geonamesUsername = "rammkripa")
+  return_list <- GNsearch(q = location_name,
+                          country = country_code,
+                          type = "json"
+                          )
+  return_val <- tryCatch(
+    expr = {
+      return_df <- return_list %>%
+      select(toponymName,lat,lng) %>%
+      head(n = 1L) %>%
+      mutate(lat = as.numeric(lat),lng = as.numeric(lng))
+      list("lat" = return_df$lat,"long" = return_df$lng)
+    },
+  error = function(e)
+  {
+    list("lat" = NA,
+         "long" = NA)
+  }
+  )
+  cache_list[[location_name]] <- return_val
+  return(return_val)
+}
+
+  
+```
+
+### Applying to the EMDAT DataSet
+
+A minor note : With normal GeoNames API access, you are limited to 1000 requests per hour. 
+
+```{r applying}
+library(tidytext)
+emdat_untidy <- emdat_clean
+
+dummy_words <- c(
+                 "cities","states","provinces","districts","municipalities","regions", "villages",
+                 "city","state","province","district","municipality","region", "township", "village",
+                 "near", "department")
+
+emdat_neat <- emdat_untidy %>%
+  unnest_tokens(output = "location_word",
+                input = Location, 
+                token = stringr::str_split,
+                pattern = ",|\\(|\\)|;|\\+|(and)|(of)") %>%
+  mutate(location_word = str_remove(
+    string = location_word, 
+    pattern = str_c(dummy_words,collapse="|"))) %>%
+  filter(!str_detect(location_word, "^[0-9 ]+$")) %>%
+  filter(!str_detect(location_word, "^ +$")) %>%
+  mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
+
+```
+
+### The Results
+
+```{r results}
+emdat_neat %>%
+  unnest_wider(col = location_data) %>%
+  #write_csv(here("clean_data","Cleaned_EMDAT.csv"))
+mutate(latisna = is.na(lat)) %>%
+  group_by(latisna) %>%
+  summarize(count = n())
+```
+
+Far Fewer NAs!!
