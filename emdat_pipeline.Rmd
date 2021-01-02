@@ -32,7 +32,7 @@ read_emdat <- function(stringy_path){
 }
 
 files <- list.files(path = here("data"),
-                    pattern = ".xlsx")
+                    pattern = "Tanzania_Kenya.xlsx")
 listy <- list()
 
 for (file_name in files){
@@ -51,11 +51,13 @@ glimpse(emdat_dirty)
 
 ```{r theproblem}
 emdat_dirty %>%
-  mutate(coords_exist = !is.na(Latitude)) %>%
-  group_by(coords_exist) %>%
+  mutate(LocationExists = !is.na(Latitude)) %>%
+  group_by(LocationExists) %>%
   summarize(count = n()) %>%
-  knitr::kable()
+  mutate(percent = count / sum(count))
 ```
+
+The current EMDAT DataSet provides very sparse coverage of the Lat/Long information associated with disasters.
 
 ### Minor Cleaning
 
@@ -107,12 +109,15 @@ get_lat_long <- function(location_name,country_name){
   return(return_val)
 }
 
+# Small test
+get_lat_long("Pondicherry","India")
   
 ```
 
 ### Applying to the EMDAT DataSet
 
 A minor note : With normal GeoNames API access, you are limited to 1000 requests per hour. 
+Here, I am using a small set of 100 rows.
 
 ```{r applying}
 library(tidytext)
@@ -133,6 +138,7 @@ emdat_neat <- emdat_untidy %>%
     pattern = str_c(dummy_words,collapse="|"))) %>%
   filter(!str_detect(location_word, "^[0-9 ]+$")) %>%
   filter(!str_detect(location_word, "^ +$")) %>%
+  head(n = 500L) %>%
   mutate(location_data = purrr::pmap(list(location_word, Country), get_lat_long))
 
 ```
@@ -140,11 +146,28 @@ emdat_neat <- emdat_untidy %>%
 ### The Results
 
 ```{r results}
+new_any <- function(vec){
+  resy <- NA
+  for (i in vec){
+    if (is.na(i)){
+      
+    }
+    else if (i==TRUE) {
+      return(TRUE)
+    }
+    else{
+      resy <- FALSE
+    }
+  }
+  return(resy)
+}
 emdat_neat %>%
   unnest_wider(col = location_data) %>%
   #write_csv(here("clean_data","Cleaned_EMDAT.csv"))
-mutate(latisna = is.na(lat)) %>%
-  group_by(latisna) %>%
+  mutate(latisnotna = !is.na(lat)) %>%
+  group_by(`Dis No`) %>%
+  summarize(LocationExists = new_any(latisnotna)) %>%
+  group_by(LocationExists) %>%
   summarize(count = n())
 ```
 
