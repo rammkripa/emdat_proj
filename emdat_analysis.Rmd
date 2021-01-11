@@ -110,6 +110,28 @@ emdat_dat %>%
   filter(any_in_reg == TRUE) %>%
   group_by(reg, year) %>%
   summarize(count = n()) %>%
-  ggplot(mapping = aes(x = year, y = count, fill = reg)) +
-  geom_col(position = "dodge")
+  filter(year > 1975 & count > 3) %>%
+  ggplot(mapping = aes(x = year, y = count, color = reg)) +
+  geom_point()+
+  geom_line()
+```
+
+```{r}
+emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  mutate(south_hem = lat < 0) %>%
+  mutate(south_hem = as.numeric(south_hem)) %>%
+  mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
+  mutate(start_month_effective = start_month_effective %% 12) %>%
+  mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region)) %>%
+  filter(start_month_eff > 7) %>%
+  filter(any_in_reg == TRUE) %>%
+  group_by(reg, year) %>%
+  summarize(count = n()) %>%
+  pivot_wider(id_cols = "year", names_from = "reg", values_from = "count") %>%
+  ggplot(mapping = aes(x = India_SriLanka, y = Phil)) +
+  geom_point()+
+  geom_smooth(method = "lm")
 ```
