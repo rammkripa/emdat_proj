@@ -74,7 +74,7 @@ emdat_clean <- emdat_dirty %>%
 ### GeoCoding: The Sauce
 
 ```{r latlongfunc}
-
+library(tidyverse)
 library(geonames)
 library(countrycode)
 ## cached
@@ -101,6 +101,7 @@ get_lat_long <- function(location_name,country_name){
     },
   error = function(e)
   {
+    print(e)
     list("lat" = NA,
          "long" = NA)
   }
