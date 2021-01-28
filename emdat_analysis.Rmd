@@ -15,21 +15,14 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(sf)
 library(here)
+library(weed)
 ```
 
 ## Loading In the Data
 
 ```{r}
 
-files_names <- list.files(path = here("clean_data","with_box_shape"), pattern = ".csv")
-listy <- list()
-
-for (file_name in files_names){
-  file_name_trimmed <- tools::file_path_sans_ext(basename(file_name))
-  listy[[file_name_trimmed]] <- read_csv(here("clean_data", "with_box_shape", file_name))
-}
-
-emdat_dat <- bind_rows(listy, .id = NULL)
+emdat_dat <- read_csv(here("clean_data","with_box_shape","Full_Clean.csv"))
 glimpse(emdat_dat)
 new_any <- function(vec){
   resy <- NA
@@ -55,10 +48,9 @@ new_any <- function(vec){
 ```{r}
 
 emdat_dat %>%
-  mutate(in_reg = in_the_box& in_shapefile) %>%
-  group_by(in_reg) %>%
-  summarize(count = n()) %>%
-  mutate(perc = count*100/sum(count))
+  weed::percent_located_locations(lat_column = "lat",
+                                  lng_column = "long",
+                                  plot_result = TRUE)
 
 ```
 
@@ -67,12 +59,9 @@ emdat_dat %>%
 ```{r}
 
 emdat_dat %>%
-  mutate(in_reg = in_the_box & in_shapefile) %>%
-  group_by(`Dis No`) %>%
-  summarize(any_in_reg = new_any(in_reg)) %>%
-  group_by(any_in_reg) %>%
-  summarize(count = n()) %>%
-  mutate(perc = count*100/sum(count))
+  weed::percent_located_disasters(lat_column = "lat", 
+                                  lng_column = "long",
+                                  plot_result = FALSE)
 
 ```
 
@@ -80,7 +69,6 @@ emdat_dat %>%
 
 ```{r}
 emdat_dat %>%
-  mutate(in_reg = in_the_box & in_shapefile) %>%
   mutate(south_hem = lat < 0) %>%
   mutate(south_hem = as.numeric(south_hem)) %>%
   mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
@@ -106,11 +94,12 @@ emdat_dat %>%
   mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
   group_by(`Dis No`) %>%
   summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region)) %>%
-  filter(start_month_eff > 7) %>%
+  filter(start_month_eff > 9) %>%
   filter(any_in_reg == TRUE) %>%
   group_by(reg, year) %>%
   summarize(count = n()) %>%
-  filter(year > 1975 & count > 3) %>%
+  filter(year > 1975) %>%
+  #filter(reg == "India_SriLanka" | reg == "Phil") %>%
   ggplot(mapping = aes(x = year, y = count, color = reg)) +
   geom_point()+
   geom_line()
@@ -133,5 +122,47 @@ emdat_dat %>%
   pivot_wider(id_cols = "year", names_from = "reg", values_from = "count") %>%
   ggplot(mapping = aes(x = India_SriLanka, y = Phil)) +
   geom_point()+
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm")+
+  ggtitle("Phillipines Vs. India_SriLanka")
+```
+
+# Without Filling NAs with 0
+
+```{r}
+seasonal_means <- read_csv(here("clean_data", "seasonal_means_pivoted.csv"))
+autumn_disasters_yearly <- read_csv(here("clean_data","autumn_disaster_counts.csv"))
+autumn_disasters_yearly %>%
+  left_join(y = seasonal_means, by = c("year" = "year_no",
+                                        "reg" = "region")) %>% 
+  ggplot(mapping = aes(x = seasonal_rain, y = count, color = reg)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE)
+  
+
+```
+
+```{r}
+autumn_disasters_yearly %>%
+  left_join(y = seasonal_means, by = c("year" = "year_no",
+                                        "reg" = "region")) %>% 
+  filter(year > 1970) %>%
+  ggplot(mapping = aes(x = seasonal_rain, y = count, color = reg)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~reg, scales = "free")
+```
+
+## What if we fill nas with 0
+
+```{r}
+autumn_disasters_yearly %>%
+  full_join(y = seasonal_means, by = c("year" = "year_no",
+                                        "reg" = "region")) %>% 
+  filter(year > 1970) %>%
+  mutate(count2 = replace_na(count, 0)) %>%
+  ggplot(mapping = aes(x = seasonal_rain, y = count2, color = reg)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  facet_wrap(~reg, scales = "free")
+
 ```
