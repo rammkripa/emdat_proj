@@ -61,7 +61,7 @@ emdat_dat %>%
 emdat_dat %>%
   weed::percent_located_disasters(lat_column = "lat", 
                                   lng_column = "long",
-                                  plot_result = FALSE)
+                                  plot_result = TRUE)
 
 ```
 
@@ -115,7 +115,7 @@ emdat_dat %>%
   mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
   group_by(`Dis No`) %>%
   summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region)) %>%
-  filter(start_month_eff > 7) %>%
+  filter(start_month_eff > 8) %>%
   filter(any_in_reg == TRUE) %>%
   group_by(reg, year) %>%
   summarize(count = n()) %>%
@@ -129,14 +129,51 @@ emdat_dat %>%
 # Without Filling NAs with 0
 
 ```{r}
+emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  filter(!`Disaster Type` == "Drought") %>%
+  filter(!`Disaster Type` == "Extreme temperature") %>%
+  filter(!`Disaster Type` == "Wildfire") %>%
+  mutate(south_hem = lat < 0) %>%
+  mutate(south_hem = as.numeric(south_hem)) %>%
+  mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
+  mutate(start_month_effective = start_month_effective %% 12) %>%
+  mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region)) %>%
+  filter(start_month_eff > 8) %>%
+  filter(any_in_reg == TRUE) %>%
+  group_by(reg, year) %>%
+  summarize(count = n())
+
+```
+
+```{r}
 seasonal_means <- read_csv(here("clean_data", "seasonal_means_pivoted.csv"))
-autumn_disasters_yearly <- read_csv(here("clean_data","autumn_disaster_counts.csv"))
+autumn_disasters_yearly <- emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  filter(!`Disaster Type` == "Drought") %>%
+  filter(!`Disaster Type` == "Extreme temperature") %>%
+  filter(!`Disaster Type` == "Wildfire") %>%
+  mutate(south_hem = lat < 0) %>%
+  mutate(south_hem = as.numeric(south_hem)) %>%
+  mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
+  mutate(start_month_effective = start_month_effective %% 12) %>%
+  mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region)) %>%
+  filter(start_month_eff > 8) %>%
+  filter(any_in_reg == TRUE) %>%
+  group_by(reg, year) %>%
+  summarize(count = n())
+  
 autumn_disasters_yearly %>%
   left_join(y = seasonal_means, by = c("year" = "year_no",
                                         "reg" = "region")) %>% 
-  ggplot(mapping = aes(x = seasonal_rain, y = count, color = reg)) +
+  ggplot(mapping = aes(x = seasonal_rain, y = count)) +
   geom_point() +
-  geom_smooth(method = "lm", se = FALSE)
+  geom_smooth(method = "lm")+
+  ggpubr::stat_cor()
   
 
 ```
@@ -160,9 +197,130 @@ autumn_disasters_yearly %>%
                                         "reg" = "region")) %>% 
   filter(year > 1970) %>%
   mutate(count2 = replace_na(count, 0)) %>%
-  ggplot(mapping = aes(x = seasonal_rain, y = count2, color = reg)) +
+  ggplot(mapping = aes(x = seasonal_rain, y = count2, color = reg, alpha = 0.2)) +
   geom_point() +
-  geom_smooth(method = "lm", se = TRUE) +
+  geom_smooth(method = "lm", se = TRUE, show.legend = TRUE) +
+  ggpubr::stat_cor()+
   facet_wrap(~reg, scales = "free")
 
+```
+
+## Dry Disasters
+
+```{r}
+
+autumn_dry_disasters_yearly <- emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  filter(`Disaster Type` %in% c("Drought", "Extreme temperature", "Wildfire")) %>%
+  mutate(south_hem = lat < 0) %>%
+  mutate(south_hem = as.numeric(south_hem)) %>%
+  mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
+  mutate(start_month_effective = start_month_effective %% 12) %>%
+  mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region)) %>%
+  #filter(start_month_eff > 8) %>%
+  filter(any_in_reg == TRUE) %>%
+  group_by(reg, year) %>%
+  summarize(count = n())
+
+
+```
+
+```{r}
+autumn_dry_disasters_yearly %>%
+  full_join(y = seasonal_means, by = c("year" = "year_no",
+                                        "reg" = "region")) %>% 
+  filter(year > 1970) %>%
+  mutate(dis_count2 = replace_na(count, 0)) %>%
+  ggplot(mapping = aes(x = seasonal_rain, y = dis_count2, color = reg)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = TRUE, show.legend = TRUE) +
+  facet_wrap(~reg)+
+  #ggpubr::stat_cor()+
+  ylab("Dry Disaster Count")
+```
+
+##What about dry and wet?
+```{r}
+autumn_disasters_yearly %>%
+  left_join(autumn_dry_disasters_yearly, by = c("year", "reg"), suffix = c("wet","dry")) %>%
+  mutate(countdry = replace_na(countdry, 0)) %>%
+  ggplot(mapping = aes(x = countwet, y = countdry))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~reg)
+
+
+```
+
+```{r}
+autumn_disasters_yearly %>%
+  left_join(autumn_dry_disasters_yearly, by = c("year", "reg"), suffix = c("wet","dry")) %>%
+  mutate(countdry = replace_na(countdry, 0)) %>%
+  mutate(wetminusdry = countwet - countdry) %>%
+  full_join(y = seasonal_means, by = c("year" = "year_no",
+                                        "reg" = "region")) %>% 
+  filter(year > 1970) %>%
+  mutate(wetminusdry = replace_na(wetminusdry, 0)) %>%
+  ggplot(mapping = aes(x = seasonal_rain, y = wetminusdry, color = reg)) +
+  geom_point() + 
+  geom_smooth(method = "lm", se = TRUE, show.legend = TRUE) +
+  facet_wrap(~reg, scales = "free")+
+  #ggpubr::stat_cor()+
+  ylab("Wet - Dry Disaster Count")
+
+
+```
+
+```{r}
+autumn_disasters_yearly %>%
+  left_join(autumn_dry_disasters_yearly, by = c("year", "reg"), suffix = c("wet","dry")) %>%
+  mutate(countdry = replace_na(countdry, 0)) %>%
+  mutate(wetminusdry = countwet - countdry) %>%
+  full_join(y = seasonal_means, by = c("year" = "year_no",
+                                        "reg" = "region")) %>% 
+  filter(year > 1970) %>%
+  mutate(wetminusdry = replace_na(wetminusdry, 0)) %>%
+  group_by(reg) %>%
+  summarize(corrwd = cor(wetminusdry, seasonal_rain, "pairwise.complete.obs"), 
+            corrw = cor(countwet, seasonal_rain, "pairwise.complete.obs"))
+```
+## ENSO?
+```{r}
+enso_data <- read_csv(here("data","enso_data.csv"))
+autumn_wet_disasters_monthly <- emdat_dat %>%
+  mutate(in_reg = in_the_box & in_shapefile) %>%
+  filter(!`Disaster Type` == "Drought") %>%
+  filter(!`Disaster Type` == "Extreme temperature") %>%
+  filter(!`Disaster Type` == "Wildfire") %>%
+  mutate(south_hem = lat < 0) %>%
+  mutate(south_hem = as.numeric(south_hem)) %>%
+  full_join(enso_data, by = c("Year" = "Year", "Start Month" = "MonthNum")) %>%
+  rename("enso_Value" = "Value") %>%
+  mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
+  mutate(start_month_effective = start_month_effective %% 12) %>%
+  mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
+  group_by(`Dis No`) %>%
+  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region), enso_value = mean(enso_Value)) %>%
+  filter(start_month_eff > 8) %>%
+  filter(any_in_reg == TRUE) %>%
+  group_by(reg, year, start_month_eff) %>%
+  summarize(count = n(), enso_value = mean(enso_value))
+```
+
+```{r}
+autumn_wet_disasters_monthly %>%
+  ggplot(mapping = aes(x = enso_value, y = count)) +
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  ggpubr::stat_cor()
+```
+```{r}
+autumn_wet_disasters_monthly %>%
+  ggplot(mapping = aes(x = enso_value, y = count, color = reg)) +
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  ggpubr::stat_cor() +
+  facet_wrap(~reg)
 ```
