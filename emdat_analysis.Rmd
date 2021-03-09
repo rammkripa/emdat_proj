@@ -50,7 +50,7 @@ new_any <- function(vec){
 emdat_dat %>%
   weed::percent_located_locations(lat_column = "lat",
                                   lng_column = "long",
-                                  plot_result = TRUE)
+                                  plot_result = FALSE)
 
 ```
 
@@ -61,7 +61,7 @@ emdat_dat %>%
 emdat_dat %>%
   weed::percent_located_disasters(lat_column = "lat", 
                                   lng_column = "long",
-                                  plot_result = TRUE)
+                                  plot_result = FALSE)
 
 ```
 
@@ -289,38 +289,82 @@ autumn_disasters_yearly %>%
 ## ENSO?
 ```{r}
 enso_data <- read_csv(here("data","enso_data.csv"))
-autumn_wet_disasters_monthly <- emdat_dat %>%
+autumn_wet_disasters_enso <- emdat_dat %>%
   mutate(in_reg = in_the_box & in_shapefile) %>%
   filter(!`Disaster Type` == "Drought") %>%
   filter(!`Disaster Type` == "Extreme temperature") %>%
   filter(!`Disaster Type` == "Wildfire") %>%
   mutate(south_hem = lat < 0) %>%
   mutate(south_hem = as.numeric(south_hem)) %>%
-  full_join(enso_data, by = c("Year" = "Year", "Start Month" = "MonthNum")) %>%
-  rename("enso_Value" = "Value") %>%
   mutate(start_month_effective = `Start Month` + (6 * (south_hem))) %>%
   mutate(start_month_effective = start_month_effective %% 12) %>%
   mutate(start_month_effective = replace(start_month_effective, start_month_effective == 0, 12)) %>%
-  group_by(`Dis No`) %>%
-  summarize(any_in_reg = new_any(in_reg), start_month_eff = first(start_month_effective), year = first(Year), reg = first(region), enso_value = mean(enso_Value)) %>%
-  filter(start_month_eff > 8) %>%
-  filter(any_in_reg == TRUE) %>%
-  group_by(reg, year, start_month_eff) %>%
-  summarize(count = n(), enso_value = mean(enso_value))
+  filter(start_month_effective > 8) %>%
+  filter(in_reg = TRUE) %>%
+  full_join(enso_data, by = c("Year" = "Year", "Start Month" = "MonthNum")) %>%
+  rename("enso_Value" = "Value") 
 ```
 
 ```{r}
-autumn_wet_disasters_monthly %>%
-  ggplot(mapping = aes(x = enso_value, y = count)) +
-  geom_point() +
-  geom_smooth(method = "lm") + 
-  ggpubr::stat_cor()
+autumn_wet_disasters_enso %>%
+  filter(is.na(start_month_effective))
+
 ```
+# With 0s
 ```{r}
-autumn_wet_disasters_monthly %>%
-  ggplot(mapping = aes(x = enso_value, y = count, color = reg)) +
+autumn_wet_disasters_enso %>%
+  filter(Year > 1950) %>%
+  group_by(Year, `Start Month`) %>%
+  summarize(enso_value = mean(enso_Value), num_disasters = n_distinct(`Dis No`, na.rm = TRUE)) %>%
+  filter(!is.na(enso_value)) %>%
+  ggplot(mapping = aes(x = enso_value, y = num_disasters)) +
   geom_point() +
   geom_smooth(method = "lm") + 
   ggpubr::stat_cor() +
-  facet_wrap(~reg)
+  ggtitle("Number of monthly disasters in autumn period Vs ONI for the month")
+  
+```
+
+# At the season level
+
+```{r}
+autumn_wet_disasters_enso %>%
+  filter(Year > 1950) %>%
+  group_by(Year) %>%
+  summarize(enso_value = mean(enso_Value), num_disasters = n_distinct(`Dis No`, na.rm = TRUE)) %>%
+  filter(!is.na(enso_value)) %>%
+  ggplot(mapping = aes(x = enso_value, y = num_disasters)) +
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  ggpubr::stat_cor() +
+  ggtitle("Number of disasters in autumn period Vs Mean ONI for the autumn months")
+```
+
+# For each region
+
+```{r}
+autumn_wet_disasters_enso %>%
+  filter(Year > 1950) %>%
+  group_by(region, Year) %>%
+  summarize(enso_value = mean(enso_Value), num_disasters = n_distinct(`Dis No`, na.rm = TRUE)) %>%
+  filter(!is.na(enso_value), !is.na(region)) %>%
+  ggplot(mapping = aes(x = enso_value, y = num_disasters, color = region)) +
+  geom_point() +
+  geom_smooth(method = "lm") + 
+  facet_wrap(~region) +
+  ggtitle("Number of disasters in autumn period Vs Mean ONI [For Each region]") 
+```
+
+# A cool Map
+
+```{r}
+world_map <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+autumn_wet_disasters_enso %>%
+  filter(Year > 1950, !is.na(enso_Value)) %>%
+  filter(in_reg = TRUE, start_month_effective > 8) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  geom_point(mapping = aes(x = long, y = lat, color = enso_Value)) +
+  ggtitle("Map of enso values and disaster locations") +
+  
 ```
