@@ -1,0 +1,173 @@
+---
+title: "Geocoding The EMDAT Dataset"
+author: "Ram Mukund Kripa"
+date: "4/15/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, include=FALSE}
+library(weed)
+library(tidyverse)
+library(here)
+library(gt)
+```
+
+## Abstract
+
+## Keywords
+
+## Introduction
+
+## Structure of The Package
+
+The structure of the Wrangler for Emergency Events Database is best explained through a sample workflow.
+
+### Loading
+
+First, one may download the subset of EM-DAT required from the public EM-DAT query tool located at [this link](https://public.emdat.be/). From here, researchers can exploit the loading functionality of WEED. EM-DAT files tend to be excel sheets with a few lines of metadata, followed by the subsection of the dataset downloaded. The read_emdat function allows researchers to load the dataset as a List in one of two ways: the dataset, as well as its metadata, or just the dataset.
+
+```{r}
+sample_data <- read_emdat(here("data", "India_SriLanka.xlsx"))
+summary(sample_data)
+```
+
+```{r viewemdat, echo=FALSE}
+sample_data[['disaster_data']] %>%
+  head() %>%
+  gt() %>%
+  tab_header(title = "Sample Data")
+```
+### Exploration
+
+The next step might be to explore the given data. One of the most pressing issues with EM-DAT at the moment is its geocoding data. The fact that a very small fraction of disasters have usable geocoding data, in terms of Latitude and Longitude, severely hampers location analysis. Another issue is the presence of multiple locations per disaster. 
+
+```{r}
+sample_df <- sample_data[['disaster_data']] %>%
+  sample_n(10) %>%
+  select(`Dis No`, Year, Country, `Disaster Type`, Location, Latitude, Longitude) %>%
+  filter(!is.na(`Dis No`))
+
+```
+
+```{r view_sampledf, echo=FALSE}
+sample_df %>%
+  gt() %>%
+  tab_header(title = 'Sample Data', subtitle = 'The problems') %>%
+  data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1") %>%
+  data_color(columns = c("Location"), colors = "coral")
+```
+
+Having a single latitude and longitude refer to multiple locations also makes analysis significantly more challenging, and nigh on impossible. To counteract these problems, the recommended Weed workflow is to change the unit of analysis of the data frame from “one row per disaster” to “one row per disaster-location pair”. This process will henceforth be referred to as “locationizing”.
+
+```{r}
+locationized_df <- sample_df %>%
+  split_locations(column_name = "Location")
+```
+
+```{r view_locationized, echo=FALSE}
+locationized_df %>%
+  gt() %>%
+  tab_header(title = 'Locationized Sample Data', subtitle = "Note the change of unit of analysis") %>%
+  data_color(columns = c("location_word"), colors = "blueviolet") %>%
+  data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1") %>%
+  data_color(columns = c("Location"), colors = "coral") %>%
+  data_color(columns = c("Dis No"), colors = "gold")
+```
+
+The split_locations function allows users to execute the process of “locationizing”. It comes with a default method of splitting, defined by its parameters ‘dummy_words’, which indicate which words to altogether remove from the location strings, and ‘joiner_regex’, which indicates how the locations have been concatenated to form the location strings.
+
+```{r}
+locationized_sample_data <- sample_data[['disaster_data']] %>%
+  split_locations(column_name = "Location")
+```
+
+The locationized Data frame is compatible with exploratory functions like percent_located_locations and percent_located_disasters which allow for easy visualization of the coverage provided in the data, with respect to latitudes and longitudes.
+
+Percent Located Location-Disaster Pairings
+
+```{r}
+locationized_sample_data  %>%
+  percent_located_locations(lat_column = "Latitude",
+                            lng_column = "Longitude")
+```
+
+Percent Located Disasters
+
+```{r}
+locationized_sample_data  %>%
+  percent_located_disasters(lat_column = "Latitude",
+                            lng_column = "Longitude")
+```
+
+As we can see, th ecoverage is very sparse. Certainly not enough for proper analysis. 
+
+Once the data has been locationized, it is ready to be geocoded.
+
+
+### Geocoding
+
+Weed uses the free [geonames API](https://www.geonames.org/) to geocode each location. To use this functionality, one must first create a free account and then supply their username to the geocode function in Weed. This function comes with a few options, depending on the kind of analysis that is being performed. Researchers can utilize the n_results parameter to get the n closest matches to the input location and decide which one to use. The unwrap parameter also allows researchers to keep the geocoded data in a nested Data frame structure, possibly good for exporting, or in unwrapped from, where each lat and long gets a separate column (lat1, lng1, lat2, lng2, etc.)
+
+```{r username, include=FALSE}
+sample_username = "rammkripa"
+```
+
+```{r geocode, message = FALSE}
+geocoded_df <- locationized_df %>%
+  geocode(unwrap = FALSE, geonames_username = sample_username)
+```
+```{r geocodeviz, echo=FALSE}
+geocoded_df %>%
+  gt() %>%
+  tab_header(title = "Geocoded Data") %>%
+  data_color(columns = c("lat", "lng"), colors = "darkolivegreen1") %>%
+  data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1")
+```
+
+Further exploration with the percent_located_locations and percent_located_disasters functions is advisable, to visualize the success of our geocoding. As the data is indeed locationized, a choice must be made as to how to decide if a disaster has been “located”. Two popular choices are any and all. “Any” considers a disaster located if any one of its constituent locations has valid lat-long data, while “all” requires every constituent location to be geocoded. These can be set by the how parameter of percent_located_disasters, which also allows user defined functions!
+
+Percent Located Locations
+
+```{r locloc}
+geocoded_df %>%
+  percent_located_locations(plot_result = FALSE) %>%
+  gt() %>%
+  tab_header(title = "Geocoding success rate") %>%
+  data_color(columns = c("percent"), colors = "orange")
+```
+
+Percent Located Disasters
+
+```{r locdiz}
+geocoded_df %>%
+  percent_located_disasters(how = "any")
+```
+
+The goal with the geocoding and subsequent exploration was to provide as much flexibility and modularity to this step of the workflow as possible, to allow for diverse analyses and use cases.
+
+### Elementary Analysis
+
+One of the most common uses of lat-long data is checking whether a point lies in some defined region. Weed allows for regions to be defined either as a lat-long box, or as a shapefile. For increased modularity, the shapefile may be defined as either a shape object or even as a string containing the file name.
+
+Assume the required box is Lat(8 to 23) and Lng(80 to 90)
+
+```{r}
+inbox_df <- geocoded_df %>%
+  located_in_box(top_left_lat = 23, top_left_lng = 80, bottom_right_lat = 8, bottom_right_lng = 90)
+```
+```{r inboxviz, echo=FALSE}
+inbox_df %>%
+  gt() %>%
+  data_color(columns = c("in_box"), color = "blue") %>%
+  tab_header(title = "Lat Long Box Data")
+```
+
+## Conclusion
+
+## Acknowledgements
+
+## References
