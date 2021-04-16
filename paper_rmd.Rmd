@@ -2,7 +2,9 @@
 title: "Geocoding The EMDAT Dataset"
 author: "Ram Mukund Kripa"
 date: "4/15/2021"
-output: html_document
+output:
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -30,7 +32,7 @@ The structure of the Wrangler for Emergency Events Database is best explained th
 
 First, one may download the subset of EM-DAT required from the public EM-DAT query tool located at [this link](https://public.emdat.be/). From here, researchers can exploit the loading functionality of WEED. EM-DAT files tend to be excel sheets with a few lines of metadata, followed by the subsection of the dataset downloaded. The read_emdat function allows researchers to load the dataset as a List in one of two ways: the dataset, as well as its metadata, or just the dataset.
 
-```{r}
+```{r, results=FALSE}
 sample_data <- read_emdat(here("data", "India_SriLanka.xlsx"))
 summary(sample_data)
 ```
@@ -45,9 +47,9 @@ sample_data[['disaster_data']] %>%
 
 The next step might be to explore the given data. One of the most pressing issues with EM-DAT at the moment is its geocoding data. The fact that a very small fraction of disasters have usable geocoding data, in terms of Latitude and Longitude, severely hampers location analysis. Another issue is the presence of multiple locations per disaster. 
 
-```{r}
+```{r, results=FALSE}
 sample_df <- sample_data[['disaster_data']] %>%
-  sample_n(10) %>%
+  sample_n(5) %>%
   select(`Dis No`, Year, Country, `Disaster Type`, Location, Latitude, Longitude) %>%
   filter(!is.na(`Dis No`))
 
@@ -116,7 +118,7 @@ Weed uses the free [geonames API](https://www.geonames.org/) to geocode each loc
 sample_username = "rammkripa"
 ```
 
-```{r geocode, message = FALSE}
+```{r geocode, results=FALSE}
 geocoded_df <- locationized_df %>%
   geocode(unwrap = FALSE, geonames_username = sample_username)
 ```
@@ -162,7 +164,7 @@ inbox_df <- geocoded_df %>%
 ```{r inboxviz, echo=FALSE}
 inbox_df %>%
   gt() %>%
-  data_color(columns = c("in_box"), color = "blue") %>%
+  data_color(columns = vars(in_box), color = scales::col_factor(palette = c("green", "orange"), domain = c(TRUE, FALSE))) %>%
   tab_header(title = "Lat Long Box Data")
 ```
 
