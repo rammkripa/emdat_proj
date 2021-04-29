@@ -33,7 +33,7 @@ The structure of the Wrangler for Emergency Events Database is best explained th
 First, one may download the subset of EM-DAT required from the public EM-DAT query tool located at [this link](https://public.emdat.be/). From here, researchers can exploit the loading functionality of WEED. EM-DAT files tend to be excel sheets with a few lines of metadata, followed by the subsection of the dataset downloaded. The read_emdat function allows researchers to load the dataset as a List in one of two ways: the dataset, as well as its metadata, or just the dataset.
 
 ```{r, results=FALSE}
-sample_data <- read_emdat(here("data", "India_SriLanka.xlsx"))
+sample_data <- read_emdat(here("data", "emdat_public_2021_01_12_full.xlsx"))
 summary(sample_data)
 ```
 
@@ -49,6 +49,7 @@ The next step might be to explore the given data. One of the most pressing issue
 
 ```{r, results=FALSE}
 sample_df <- sample_data[['disaster_data']] %>%
+  filter(str_detect(Country, "United States")) %>% # Change dep on country
   sample_n(5) %>%
   select(`Dis No`, Year, Country, `Disaster Type`, Location, Latitude, Longitude) %>%
   filter(!is.na(`Dis No`))
@@ -81,6 +82,12 @@ locationized_df %>%
 ```
 
 The split_locations function allows users to execute the process of “locationizing”. It comes with a default method of splitting, defined by its parameters ‘dummy_words’, which indicate which words to altogether remove from the location strings, and ‘joiner_regex’, which indicates how the locations have been concatenated to form the location strings.
+
+A note on the kinds of locations we get:
+
+Some hand-picked location strings from various parts of the emdat dataset read here:
+
+
 
 ```{r}
 locationized_sample_data <- sample_data[['disaster_data']] %>%
