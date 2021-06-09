@@ -112,7 +112,7 @@ locationized_sample_data  %>%
                             lng_column = "Longitude")
 ```
 
-As we can see, th ecoverage is very sparse. Certainly not enough for proper analysis. 
+As we can see, the coverage is very sparse. Certainly not enough for proper analysis. 
 
 Once the data has been locationized, it is ready to be geocoded.
 
@@ -162,18 +162,62 @@ The goal with the geocoding and subsequent exploration was to provide as much fl
 
 One of the most common uses of lat-long data is checking whether a point lies in some defined region. Weed allows for regions to be defined either as a lat-long box, or as a shapefile. For increased modularity, the shapefile may be defined as either a shape object or even as a string containing the file name.
 
-Assume the required box is Lat(8 to 23) and Lng(80 to 90)
+#### Lat-Long Box
+
+Assume the required box is given as follows
+```{r}
+tllat = 40 # top left latitude
+tllng = -119 # top left longitude
+brlat = 35 # bottom right latitude
+brlng = -75 # bottom right longitude
+```
 
 ```{r}
 inbox_df <- geocoded_df %>%
-  located_in_box(top_left_lat = 23, top_left_lng = 80, bottom_right_lat = 8, bottom_right_lng = 90)
+  located_in_box(top_left_lat = tllat, top_left_lng = tllng, bottom_right_lat = brlat, bottom_right_lng = brlng)
 ```
+
 ```{r inboxviz, echo=FALSE}
 inbox_df %>%
   gt() %>%
   data_color(columns = vars(in_box), color = scales::col_factor(palette = c("green", "orange"), domain = c(TRUE, FALSE))) %>%
   tab_header(title = "Lat Long Box Data")
 ```
+
+Visualizing the points on a map!
+
+```{r}
+inbox_df %>%
+ggplot() +
+  geom_rect(xmin = tllng, xmax = brlng, ymin = brlat, ymax = tllat, fill = "violet") +
+  geom_hline(yintercept = brlat, color = "green") +
+  geom_hline(yintercept = tllat, color = "green") +
+  geom_vline(xintercept = tllng, color = "green") +
+  geom_vline(xintercept = brlng, color = "green") +
+  geom_point(mapping = aes(x = lng, y = lat, color = in_box)) +
+  labs(title = "Result of the in_box function", subtitle = "Showing the disaster location points and the Lat-Long box", x = "Longitude", y = "Latitude")
+```
+
+#### Shapefile
+
+Likewise, we can check whether points lie in a given shapefile.
+
+```{r}
+shape_mask <-  st_read(here("shape_data","NH_mask.shp"))
+map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
+                         returnclass = "sf")
+inbox_df %>%
+  located_in_shapefile(shapefile = shape_mask) %>%
+  ggplot() +
+  geom_sf(data = map_of_us) +
+  geom_sf(data = shape_mask, color = 'green', fill = 'yellow') +
+  geom_point(mapping = aes(x = lng, y = lat, color = in_shape)) +
+  labs(title = "Result of the in_box function", subtitle = "Showing the disaster location points and the Lat-Long box", x = "Longitude", y = "Latitude") +
+  xlim(-120, -70) +
+  ylim(30, 47)
+```
+
+
 
 ## Conclusion
 
