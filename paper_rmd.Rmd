@@ -16,6 +16,8 @@ library(weed)
 library(tidyverse)
 library(here)
 library(gt)
+library(sf)
+library(sp)
 ```
 
 ## Abstract
@@ -23,6 +25,10 @@ library(gt)
 ## Keywords
 
 ## Introduction
+
+WEED (Wrangler for Emergency Events Database) is an R Package designed to help researches in the field of climatological disaster studies better analyse EM-DAT and other related datasets. As will be explained in later sections of this paper, EM-DAT contains a lot of useful climatoligical and sociological data pertaining to natural disasters. However, it has a few drawbacks in its presentation of geolocation data as well as its unsuitability to a tidy data science workflow. 
+
+WEED attempts to solve and eradicate these issues to help researchers glean valuable insights from their EM-DAT dataset!
 
 ## Structure of The Package
 
@@ -49,7 +55,7 @@ The next step might be to explore the given data. One of the most pressing issue
 
 ```{r, results=FALSE}
 sample_df <- sample_data[['disaster_data']] %>%
-  filter(str_detect(Country, "United States")) %>% # Change dep on country
+  filter(str_detect(Country, "(United States)|(Canada)")) %>% # Change dep on country
   sample_n(5) %>%
   select(`Dis No`, Year, Country, `Disaster Type`, Location, Latitude, Longitude) %>%
   filter(!is.na(`Dis No`))
@@ -83,9 +89,11 @@ locationized_df %>%
 
 The split_locations function allows users to execute the process of “locationizing”. It comes with a default method of splitting, defined by its parameters ‘dummy_words’, which indicate which words to altogether remove from the location strings, and ‘joiner_regex’, which indicates how the locations have been concatenated to form the location strings.
 
-A note on the kinds of locations we get:
+A few notes on the kinds of locations we get:
 
-Some hand-picked location strings from various parts of the emdat dataset read here:
+Collections of locations are represented in a wide variety of ways in EM-DAT, owing to the fact that this is a dataset that is manually filled row-by-row. Since there is only one location column, a solitary string is associated with each disaster, and there is a need for a delimiter to distinguish between separate locations affected by the disaster. Common methods of representation of abritrary locations (here called A, B and C) include "A, B, and C", "(1) A (2) B (3) C" and "A (B and C)." Such delimiters are handled by the location extraction algorithm, but others may be accounted for using the joiner_regex parameter.
+
+When parentheses are present in location strings, like "Berkeley (California)" or "California (Berkeley, Emeryville, Alameda)", we see that problems can arise in regard to differing levels of specificity. We are unsure of the specificity of each these locations just by their position relative to their associated parentheses. Hence, we flag these with an uncertainty column.
 
 
 
@@ -96,7 +104,9 @@ locationized_sample_data <- sample_data[['disaster_data']] %>%
 
 The locationized Data frame is compatible with exploratory functions like percent_located_locations and percent_located_disasters which allow for easy visualization of the coverage provided in the data, with respect to latitudes and longitudes.
 
-Percent Located Location-Disaster Pairings
+### Percent Located Location-Disaster Pairings
+
+This function displays what proportion of the locations (obtained by split_locations) have been geocoded in the input dataset.
 
 ```{r}
 locationized_sample_data  %>%
@@ -104,7 +114,9 @@ locationized_sample_data  %>%
                             lng_column = "Longitude")
 ```
 
-Percent Located Disasters
+### Percent Located Disasters
+
+This is quite self explanatory, in the sense that it displays what proportion of the disasters have been geocoded in the input dataset.
 
 ```{r}
 locationized_sample_data  %>%
@@ -139,7 +151,9 @@ geocoded_df %>%
 
 Further exploration with the percent_located_locations and percent_located_disasters functions is advisable, to visualize the success of our geocoding. As the data is indeed locationized, a choice must be made as to how to decide if a disaster has been “located”. Two popular choices are any and all. “Any” considers a disaster located if any one of its constituent locations has valid lat-long data, while “all” requires every constituent location to be geocoded. These can be set by the how parameter of percent_located_disasters, which also allows user defined functions!
 
-Percent Located Locations
+### Percent Located Locations
+
+Just as before.
 
 ```{r locloc}
 geocoded_df %>%
@@ -149,7 +163,9 @@ geocoded_df %>%
   data_color(columns = c("percent"), colors = "orange")
 ```
 
-Percent Located Disasters
+### Percent Located Disasters
+
+A slight change from before as, now, we have different geocoding for each location within a disaster. We can decide whether to consider a disaster to be geocoded if any of the locations have been geocoded, or all, or some specific percentage or combination. "How" and "any" are default options but we support user-defined aggregation functions as well.
 
 ```{r locdiz}
 geocoded_df %>%
@@ -165,12 +181,15 @@ One of the most common uses of lat-long data is checking whether a point lies in
 #### Lat-Long Box
 
 Assume the required box is given as follows
+
 ```{r}
 tllat = 40 # top left latitude
 tllng = -119 # top left longitude
 brlat = 35 # bottom right latitude
 brlng = -75 # bottom right longitude
 ```
+
+We want to find out whether each of the disaster-location pairings in our dataset falls within this latitiude and longitude bounding box. This easy-to-use function performs the simple task, and can easily be piped with elementary visual analysis for verification and ease of understanding.
 
 ```{r}
 inbox_df <- geocoded_df %>%
@@ -187,14 +206,22 @@ inbox_df %>%
 Visualizing the points on a map!
 
 ```{r}
+map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
+                         returnclass = "sf")
+map_of_canada <- rnaturalearth::ne_countries(country = "Canada",
+                         returnclass = "sf")
 inbox_df %>%
 ggplot() +
+  geom_sf(data = map_of_us) +
+  geom_sf(data = map_of_canada) +
   geom_rect(xmin = tllng, xmax = brlng, ymin = brlat, ymax = tllat, fill = "violet") +
   geom_hline(yintercept = brlat, color = "green") +
   geom_hline(yintercept = tllat, color = "green") +
   geom_vline(xintercept = tllng, color = "green") +
   geom_vline(xintercept = brlng, color = "green") +
   geom_point(mapping = aes(x = lng, y = lat, color = in_box)) +
+  xlim(-150, -20) +
+  ylim(30, 70) +
   labs(title = "Result of the in_box function", subtitle = "Showing the disaster location points and the Lat-Long box", x = "Longitude", y = "Latitude")
 ```
 
@@ -203,21 +230,24 @@ ggplot() +
 Likewise, we can check whether points lie in a given shapefile.
 
 ```{r}
-shape_mask <-  st_read(here("shape_data","NH_mask.shp"))
 map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
                          returnclass = "sf")
+map_of_canada <- rnaturalearth::ne_countries(country = "Canada",
+                         returnclass = "sf")
 inbox_df %>%
-  located_in_shapefile(shapefile = shape_mask) %>%
+  filter(!is.na(lat)) %>%
+  located_in_shapefile(shapefile = map_of_canada) %>%
   ggplot() +
   geom_sf(data = map_of_us) +
-  geom_sf(data = shape_mask, color = 'green', fill = 'yellow') +
+  geom_sf(data = map_of_canada) +
+  geom_sf(data = map_of_canada, color = 'green', fill = 'yellow') +
   geom_point(mapping = aes(x = lng, y = lat, color = in_shape)) +
   labs(title = "Result of the in_box function", subtitle = "Showing the disaster location points and the Lat-Long box", x = "Longitude", y = "Latitude") +
-  xlim(-120, -70) +
-  ylim(30, 47)
+  xlim(-150, -20) +
+  ylim(30, 70)
 ```
 
-
+These functionalities should help with most common geocoding use cases and serve as a starting point for further analysis.
 
 ## Conclusion
 
