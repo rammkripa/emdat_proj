@@ -1,7 +1,7 @@
 ---
 title: "Geocoding The EMDAT Dataset"
 author: "Ram Mukund Kripa"
-date: "4/15/2021"
+date: "6/24/2021"
 output:
   html_document: default
   word_document: default
@@ -21,6 +21,10 @@ library(sp)
 ```
 
 ## Abstract
+
+EM-DAT is a very popular disaster dataset among researchers in the field of Earth and Environmental science. However, it comes with challenges, in its format and otherwise, that make it unsuitable to a tidy data science workflow in popular environments like R. The Wrangler for Emergency Events Database, weed for short, aims to provide researchers with the right tools to easily prepare EM-DAT data for downstream analysis, as well as some exploration of the same. The sample workflow here demonstrates the capabilities of weed and its functions.
+
+
 
 ## Keywords
 
@@ -53,14 +57,13 @@ sample_data[['disaster_data']] %>%
 
 The next step might be to explore the given data. One of the most pressing issues with EM-DAT at the moment is its geocoding data. The fact that a very small fraction of disasters have usable geocoding data, in terms of Latitude and Longitude, severely hampers location analysis. Another issue is the presence of multiple locations per disaster. 
 
-```{r, results=FALSE}
-sample_df <- sample_data[['disaster_data']] %>%
-  filter(str_detect(Country, "(United States)|(Canada)")) %>% # Change dep on country
-  sample_n(5) %>%
+```{r, results=FALSE, echo = FALSE}
+sample_df <- read_csv(here("sample_data.csv")) %>%
   select(`Dis No`, Year, Country, `Disaster Type`, Location, Latitude, Longitude) %>%
   filter(!is.na(`Dis No`))
 
 ```
+
 
 ```{r view_sampledf, echo=FALSE}
 sample_df %>%
@@ -250,6 +253,8 @@ inbox_df %>%
 These functionalities should help with most common geocoding use cases and serve as a starting point for further analysis.
 
 ## Conclusion
+
+
 
 ## Acknowledgements
 
