@@ -18,11 +18,12 @@ library(here)
 library(gt)
 library(sf)
 library(sp)
+library(USAboundaries)
 ```
 
 ## Abstract
 
-EM-DAT is a very popular disaster dataset among researchers in the field of Earth and Environmental science. However, it comes with challenges, in its format and otherwise, that make it unsuitable to a tidy data science workflow in popular environments like R. The Wrangler for Emergency Events Database, weed for short, aims to provide researchers with the right tools to easily prepare EM-DAT data for downstream analysis, as well as some exploration of the same. The sample workflow here demonstrates the capabilities of weed and its functions.
+EM-DAT is a very popular disaster dataset among researchers in the field of Earth and Environmental science. However, it comes with challenges, in its format and otherwise, that make it unsuitable to a tidy data science workflow in popular environments like R. The Wrangler for Emergency Events Database, weed for short, aims to provide researchers with the right tools to easily prepare EM-DAT data for downstream analysis, as well as some exploration of the same. The sample workflow here demonstrates the capabilities of weed through its functions.
 
 
 
@@ -53,6 +54,7 @@ sample_data[['disaster_data']] %>%
   gt() %>%
   tab_header(title = "Sample Data")
 ```
+
 ### Exploration
 
 The next step might be to explore the given data. One of the most pressing issues with EM-DAT at the moment is its geocoding data. The fact that a very small fraction of disasters have usable geocoding data, in terms of Latitude and Longitude, severely hampers location analysis. Another issue is the presence of multiple locations per disaster. 
@@ -87,7 +89,8 @@ locationized_df %>%
   data_color(columns = c("location_word"), colors = "blueviolet") %>%
   data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1") %>%
   data_color(columns = c("Location"), colors = "coral") %>%
-  data_color(columns = c("Dis No"), colors = "gold")
+  data_color(columns = c("Dis No"), colors = "gold") %>%
+  data_color(columns = c('uncertain_location_specificity'), colors = scales::col_factor(palette = c("green", "pink"), domain = NULL))
 ```
 
 The split_locations function allows users to execute the process of “locationizing”. It comes with a default method of splitting, defined by its parameters ‘dummy_words’, which indicate which words to altogether remove from the location strings, and ‘joiner_regex’, which indicates how the locations have been concatenated to form the location strings.
@@ -96,7 +99,7 @@ A few notes on the kinds of locations we get:
 
 Collections of locations are represented in a wide variety of ways in EM-DAT, owing to the fact that this is a dataset that is manually filled row-by-row. Since there is only one location column, a solitary string is associated with each disaster, and there is a need for a delimiter to distinguish between separate locations affected by the disaster. Common methods of representation of abritrary locations (here called A, B and C) include "A, B, and C", "(1) A (2) B (3) C" and "A (B and C)." Such delimiters are handled by the location extraction algorithm, but others may be accounted for using the joiner_regex parameter.
 
-When parentheses are present in location strings, like "Berkeley (California)" or "California (Berkeley, Emeryville, Alameda)", we see that problems can arise in regard to differing levels of specificity. We are unsure of the specificity of each these locations just by their position relative to their associated parentheses. Hence, we flag these with an uncertainty column.
+When parentheses are present in location strings, like "Berkeley (California)" or "California (Berkeley, Emeryville, Alameda)", we see that problems can arise in regard to differing levels of specificity. We are unsure of the specificity of each these locations just by their position relative to their associated parentheses. Hence, we flag these with an uncertainty column called "uncertain_location_specificity".
 
 
 
@@ -152,11 +155,13 @@ geocoded_df %>%
   data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1")
 ```
 
+If your dataset has more than 1000 records after locationizing it is advisable to use our function geocode_batches which includes a cooldown time between batches so that issues with limits on the number of queries one can make to the geonames API can be avoided.
+
 Further exploration with the percent_located_locations and percent_located_disasters functions is advisable, to visualize the success of our geocoding. As the data is indeed locationized, a choice must be made as to how to decide if a disaster has been “located”. Two popular choices are any and all. “Any” considers a disaster located if any one of its constituent locations has valid lat-long data, while “all” requires every constituent location to be geocoded. These can be set by the how parameter of percent_located_disasters, which also allows user defined functions!
 
 ### Percent Located Locations
 
-Just as before.
+
 
 ```{r locloc}
 geocoded_df %>%
@@ -206,7 +211,6 @@ inbox_df %>%
   tab_header(title = "Lat Long Box Data")
 ```
 
-Visualizing the points on a map!
 
 ```{r}
 map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
@@ -225,25 +229,27 @@ ggplot() +
   geom_point(mapping = aes(x = lng, y = lat, color = in_box)) +
   xlim(-150, -20) +
   ylim(30, 70) +
-  labs(title = "Result of the in_box function", subtitle = "Showing the disaster location points and the Lat-Long box", x = "Longitude", y = "Latitude")
+  labs(title = "Result of the in_box function", subtitle = "Visualizing the points on a map!", x = "Longitude", y = "Latitude")
 ```
 
 #### Shapefile
 
 Likewise, we can check whether points lie in a given shapefile.
+Here we see which points lie in the region of California.
 
 ```{r}
 map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
                          returnclass = "sf")
 map_of_canada <- rnaturalearth::ne_countries(country = "Canada",
                          returnclass = "sf")
+map_california <- USAboundaries::us_states(states = c('California'))
 inbox_df %>%
   filter(!is.na(lat)) %>%
-  located_in_shapefile(shapefile = map_of_canada) %>%
+  located_in_shapefile(shapefile = map_california) %>%
   ggplot() +
   geom_sf(data = map_of_us) +
   geom_sf(data = map_of_canada) +
-  geom_sf(data = map_of_canada, color = 'green', fill = 'yellow') +
+  geom_sf(data = map_california, color = 'red', fill = 'yellow') +
   geom_point(mapping = aes(x = lng, y = lat, color = in_shape)) +
   labs(title = "Result of the in_box function", subtitle = "Showing the disaster location points and the Lat-Long box", x = "Longitude", y = "Latitude") +
   xlim(-150, -20) +
@@ -252,8 +258,9 @@ inbox_df %>%
 
 These functionalities should help with most common geocoding use cases and serve as a starting point for further analysis.
 
-## Conclusion
+## Impact and Conclusion
 
+The Wrangler for Emergency Events Database package can be used by researchers for analysis of disaster patterns in many regions. While it does not directly deal with analysis functions, the data cleaning and preparation tools offered by weed have proven useful in conducting further research. Geocoded disaster-location pairs are invaluable, and help connect the various locations affected by each calamity. Other efforts in this sphere of geocoding disaster data seem to be static, in that net new data is not geocoded, and seem to offer only one location for each disaster, even though common sense would suggest that many types of disasters affect a number of places in different ways. By changing the unit of analysis, providing geocoding and elemntary exploratory analysis tools, we hope that weed is eventually the first step of choice in emergency event analysis.
 
 
 ## Acknowledgements
