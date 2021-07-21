@@ -1,15 +1,15 @@
 ---
 title: "Geocoding The EMDAT Dataset"
 author: "Ram Mukund Kripa"
-date: "6/24/2021"
+date: "7/15/2021"
 output:
-  md_document : default
   word_document: default
+  md_document : default
   html_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, error = FALSE, message = FALSE)
 ```
 
 ```{r packages, include=FALSE}
@@ -20,6 +20,7 @@ library(gt)
 library(sf)
 library(sp)
 library(USAboundaries)
+library(flextable)
 ```
 
 ## Abstract
@@ -52,17 +53,19 @@ summary(sample_data)
 ```{r viewemdat, echo=FALSE}
 sample_data[['disaster_data']] %>%
   head() %>%
-  gt() %>%
-  tab_header(title = "Sample Data")
+  select('Dis No', 'Country', 'Location', 'Year') %>%
+  data.frame() %>%
+  flextable() %>%
+  add_header_row(values = c("Sample Data"), colwidths = c(4))
 ```
 
 ### Exploration
 
 The next step might be to explore the given data. One of the most pressing issues with EM-DAT at the moment is its geocoding data. The fact that a very small fraction of disasters have usable geocoding data, in terms of Latitude and Longitude, severely hampers location analysis. Another issue is the presence of multiple locations per disaster. 
 
-```{r, results=FALSE, echo = FALSE}
+```{r, results=FALSE, echo = FALSE, warning = FALSE}
 sample_df <- read_csv(here("sample_data.csv")) %>%
-  select(`Dis No`, Year, Country, `Disaster Type`, Location, Latitude, Longitude) %>%
+  select(`Dis No`, Country, `Disaster Type`, Location, Latitude, Longitude) %>%
   filter(!is.na(`Dis No`))
 
 ```
@@ -70,10 +73,11 @@ sample_df <- read_csv(here("sample_data.csv")) %>%
 
 ```{r view_sampledf, echo=FALSE}
 sample_df %>%
-  gt() %>%
-  tab_header(title = 'Sample Data', subtitle = 'The problems') %>%
-  data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1") %>%
-  data_color(columns = c("Location"), colors = "coral")
+  data.frame() %>%
+  flextable() %>%
+  add_header_row(values = c("Sample Data: Problems"), colwidths = c(6)) %>%
+  bg(j = c("Latitude", "Longitude"), bg = "cadetblue1") %>%
+  bg(j = c("Location"), bg = "coral")
 ```
 
 Having a single latitude and longitude refer to multiple locations also makes analysis significantly more challenging, and nigh on impossible. To counteract these problems, the recommended Weed workflow is to change the unit of analysis of the data frame from “one row per disaster” to “one row per disaster-location pair”. This process will henceforth be referred to as “locationizing”.
@@ -85,13 +89,14 @@ locationized_df <- sample_df %>%
 
 ```{r view_locationized, echo=FALSE}
 locationized_df %>%
-  gt() %>%
-  tab_header(title = 'Locationized Sample Data', subtitle = "Note the change of unit of analysis") %>%
-  data_color(columns = c("location_word"), colors = "blueviolet") %>%
-  data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1") %>%
-  data_color(columns = c("Location"), colors = "coral") %>%
-  data_color(columns = c("Dis No"), colors = "gold") %>%
-  data_color(columns = c('uncertain_location_specificity'), colors = scales::col_factor(palette = c("green", "pink"), domain = NULL))
+  head() %>%
+  select(-Location) %>%
+  flextable() %>%
+  add_header_row(values = c('Locationized Sample Data'),colwidths = c(7)) %>%
+  bg(j = c("location_word"), bg = "blueviolet") %>%
+  bg(j = c("Latitude", "Longitude"), bg = "cadetblue1") %>%
+  bg(j = c("Dis No"), bg = "gold") %>%
+  bg(j = c('uncertain_location_specificity'), bg = scales::col_factor(palette = c("green", "pink"), domain = NULL))
 ```
 
 The split_locations function allows users to execute the process of “locationizing”. It comes with a default method of splitting, defined by its parameters ‘dummy_words’, which indicate which words to altogether remove from the location strings, and ‘joiner_regex’, which indicates how the locations have been concatenated to form the location strings.
@@ -150,10 +155,12 @@ geocoded_df <- locationized_df %>%
 ```
 ```{r geocodeviz, echo=FALSE}
 geocoded_df %>%
-  gt() %>%
-  tab_header(title = "Geocoded Data") %>%
-  data_color(columns = c("lat", "lng"), colors = "darkolivegreen1") %>%
-  data_color(columns = c("Latitude", "Longitude"), colors = "cadetblue1")
+  head() %>%
+  select(-Location) %>%
+  flextable() %>%
+  add_header_row(values = c("Geocoded Data"), colwidths = c(9)) %>%
+  bg(j = c("lat", "lng"), bg = "darkolivegreen1") %>%
+  bg(j = c("Latitude", "Longitude"), bg = "cadetblue1")
 ```
 
 If your dataset has more than 1000 records after locationizing it is advisable to use our function geocode_batches which includes a cooldown time between batches so that issues with limits on the number of queries one can make to the geonames API can be avoided.
@@ -166,10 +173,7 @@ Further exploration with the percent_located_locations and percent_located_disas
 
 ```{r locloc}
 geocoded_df %>%
-  percent_located_locations(plot_result = FALSE) %>%
-  gt() %>%
-  tab_header(title = "Geocoding success rate") %>%
-  data_color(columns = c("percent"), colors = "orange")
+  percent_located_locations()
 ```
 
 ### Percent Located Disasters
@@ -207,13 +211,15 @@ inbox_df <- geocoded_df %>%
 
 ```{r inboxviz, echo=FALSE}
 inbox_df %>%
-  gt() %>%
-  data_color(columns = vars(in_box), color = scales::col_factor(palette = c("green", "orange"), domain = c(TRUE, FALSE))) %>%
-  tab_header(title = "Lat Long Box Data")
+  head() %>%
+  select(-Location) %>%
+  flextable() %>%
+  bg(j = c('in_box'), bg = scales::col_factor(palette = c("green", "orange"), domain = c(TRUE, FALSE))) %>%
+  add_header_row(values = c("Lat Long Box Data"), colwidths = c(10))
 ```
 
 
-```{r}
+```{r, echo = FALSE}
 map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
                          returnclass = "sf")
 map_of_canada <- rnaturalearth::ne_countries(country = "Canada",
@@ -238,7 +244,7 @@ ggplot() +
 Likewise, we can check whether points lie in a given shapefile.
 Here we see which points lie in the region of California.
 
-```{r}
+```{r, echo = FALSE}
 map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
                          returnclass = "sf")
 map_of_canada <- rnaturalearth::ne_countries(country = "Canada",
