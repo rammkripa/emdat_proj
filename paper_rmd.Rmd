@@ -1,5 +1,5 @@
 ---
-title: "Geocoding The EMDAT Dataset"
+title: "Weed: A package Geocoding The EMDAT Dataset"
 author: "Ram Mukund Kripa"
 date: "7/15/2021"
 output:
@@ -156,9 +156,9 @@ geocoded_df <- locationized_df %>%
 ```{r geocodeviz, echo=FALSE}
 geocoded_df %>%
   head() %>%
-  select(-Location) %>%
+  select(-c(Location, uncertain_location_specificity, `Disaster Type`)) %>%
   flextable() %>%
-  add_header_row(values = c("Geocoded Data"), colwidths = c(9)) %>%
+  add_header_row(values = c("Geocoded Data"), colwidths = c(7)) %>%
   bg(j = c("lat", "lng"), bg = "darkolivegreen1") %>%
   bg(j = c("Latitude", "Longitude"), bg = "cadetblue1")
 ```
@@ -224,19 +224,22 @@ map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
                          returnclass = "sf")
 map_of_canada <- rnaturalearth::ne_countries(country = "Canada",
                          returnclass = "sf")
+map_of_mexico <- rnaturalearth::ne_countries(country = "Mexico",
+                         returnclass = "sf")
 inbox_df %>%
 ggplot() +
   geom_sf(data = map_of_us) +
   geom_sf(data = map_of_canada) +
-  geom_rect(xmin = tllng, xmax = brlng, ymin = brlat, ymax = tllat, fill = "violet") +
-  geom_hline(yintercept = brlat, color = "green") +
-  geom_hline(yintercept = tllat, color = "green") +
-  geom_vline(xintercept = tllng, color = "green") +
-  geom_vline(xintercept = brlng, color = "green") +
+  geom_sf(data = map_of_mexico) +
+  geom_rect(xmin = tllng, xmax = brlng, ymin = brlat, ymax = tllat, fill = "yellow") +
+  geom_hline(yintercept = brlat, color = "yellow") +
+  geom_hline(yintercept = tllat, color = "yellow") +
+  geom_vline(xintercept = tllng, color = "yellow") +
+  geom_vline(xintercept = brlng, color = "yellow") +
   geom_point(mapping = aes(x = lng, y = lat, color = in_box)) +
-  xlim(-150, -20) +
+  xlim(-150, -40) +
   ylim(30, 70) +
-  labs(title = "Result of the in_box function", subtitle = "Visualizing the points on a map!", x = "Longitude", y = "Latitude")
+  labs(title = "Result of the in_box function", subtitle = " ", x = "Longitude", y = "Latitude")
 ```
 
 #### Shapefile
@@ -249,6 +252,8 @@ map_of_us <- rnaturalearth::ne_countries(country = "United States of America",
                          returnclass = "sf")
 map_of_canada <- rnaturalearth::ne_countries(country = "Canada",
                          returnclass = "sf")
+map_of_mexico <- rnaturalearth::ne_countries(country = "Mexico",
+                         returnclass = "sf")
 map_california <- USAboundaries::us_states(states = c('California'))
 inbox_df %>%
   filter(!is.na(lat)) %>%
@@ -256,10 +261,11 @@ inbox_df %>%
   ggplot() +
   geom_sf(data = map_of_us) +
   geom_sf(data = map_of_canada) +
-  geom_sf(data = map_california, color = 'red', fill = 'yellow') +
+  geom_sf(data = map_of_mexico) +
+  geom_sf(data = map_california, color = 'yellow', fill = 'yellow') +
   geom_point(mapping = aes(x = lng, y = lat, color = in_shape)) +
-  labs(title = "Result of the in_box function", subtitle = "Showing the disaster location points and the Lat-Long box", x = "Longitude", y = "Latitude") +
-  xlim(-150, -20) +
+  labs(title = "Result of the in_shapefile function", subtitle = "Showing the disaster location points and the shapefile polygon", x = "Longitude", y = "Latitude") +
+  xlim(-150, -40) +
   ylim(30, 70)
 ```
 
