@@ -378,20 +378,20 @@ enso_data %>%
 ```
 
 ```{r}
-enso_data %>%
-  ggplot(mapping = aes(x = Value, y = quantile, color = quantile)) +
-  geom_point()
+#enso_data %>%
+  #ggplot(mapping = aes(x = Value, y = quantile, color = quantile)) +
+  #geom_point()
 ```
 
 ```{r}
-autumn_wet_disasters_enso %>%
-  filter(Year > 1950) %>%
-  group_by(region, Year) %>%
-  summarize(enso_value = mean(quantile), num_disasters = n_distinct(`Dis No`, na.rm = TRUE)) %>%
-  filter(!is.na(enso_value), !is.na(region)) %>%
-  ggplot(mapping = aes(x = enso_value, y = num_disasters, color = region)) +
-  geom_point() +
-  geom_smooth(method = "lm") + 
-  facet_wrap(~region) +
-  ggtitle("Number of disasters in autumn period Vs Quantile [For Each region]") 
+#autumn_wet_disasters_enso %>%
+  #filter(Year > 1950) %>%
+  #group_by(region, Year) %>%
+  #summarize(enso_value = mean(quantile), num_disasters = n_distinct(`Dis No`, na.rm = TRUE)) %>%
+  #filter(!is.na(enso_value), !is.na(region)) %>%
+  #ggplot(mapping = aes(x = enso_value, y = num_disasters, color = region)) +
+  #geom_point() +
+  #geom_smooth(method = "lm") + 
+  #facet_wrap(~region) +
+  #ggtitle("Number of disasters in autumn period Vs Quantile [For Each region]") 
 ```

@@ -1,0 +1,184 @@
+---
+title: "ENSO analysis new"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Packages
+
+```{r}
+library(tidyverse)
+library(sf)
+library(here)
+library(weed)
+library(rnaturalearth)
+library(rnaturalearthdata)
+```
+
+## Loading In the Data
+
+```{r}
+emdat <- read_csv(here("full_emdat_geocoded_finally.csv"))
+```
+# How many disasters were located?
+
+```{r}
+emdat %>%
+  percent_located_disasters(plot_result=FALSE)
+```
+
+# How many locations were located?
+
+```{r}
+emdat %>%
+  percent_located_locations(plot_result=FALSE)
+```
+# All types of disasters
+
+```{r}
+emdat %>%
+  group_by(`Disaster Type`) %>%
+  count()
+```
+
+# Restrict to dry and wet hydrological disasters
+
+```{r}
+dry_list <- c("Drought", "Extreme temperature", "Wildfire")
+wet_list <- c("Flood", "Landslide", "Storm")
+
+emdat_hydrological <- emdat %>%
+  filter(`Disaster Type` %in% c(dry_list, wet_list)) %>%
+  mutate(dry = (`Disaster Type` %in% dry_list), wet = (`Disaster Type` %in% wet_list))
+```
+
+```{r}
+emdat_hydrological %>%
+  group_by(`Disaster Type`) %>%
+  count()
+```
+
+# ENSO data
+
+```{r}
+enso_data <- read_csv(here("data","enso_data_copy2.csv"))
+enso_data %>%
+  group_by(Event) %>%
+  count()
+```
+
+```{r}
+emdat_hydrological_enso <- emdat_hydrological %>%
+  full_join(enso_data, by = c("Year" = "Year", "Start Month" = "MonthNum")) %>%
+  rename("enso_Value" = "Value") 
+```
+
+```{r}
+emdat_hydrological_enso %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  mutate(enso_positive = (enso_Value > 0)) %>%
+  group_by(`Dis No`) %>%
+  summarize(enso_pos = any(enso_positive),enso_val = mean(enso_Value), is_wet = any(wet)) %>%
+  ggplot(mapping = aes(x = enso_val, fill = is_wet)) +
+    geom_histogram(stat = "density") +
+    facet_grid(~is_wet) +
+  ggtitle("Counts of Disasters compared to value of ONI with wet disasters in Blue and Dry in Red")
+```
+```{r}
+emdat_hydrological_enso %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  #mutate(enso_positive = (enso_Value > 0)) %>%
+  group_by(`Dis No`) %>%
+  summarize(enso_event = first(Event),enso_val = mean(enso_Value), is_wet = any(wet), is_dry = any(dry)) %>%
+  mutate(is_wet_num = as.numeric(is_wet), is_dry_num = as.numeric(is_dry)) %>%
+  group_by(enso_event) %>%
+  summarize(num_disasters_wet = sum(is_wet_num), num_disasters_dry = sum(is_dry_num))
+```
+```{r}
+world_map <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf")
+
+emdat_hydrological_enso %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  filter(!is.na(lat)) %>%
+  mutate(enso_positive = (enso_Value > 0)) %>%
+  mutate(wet_factor = as_factor(wet)) %>%
+  mutate(wet_string = fct_recode(wet_factor, wet_disasters = "TRUE", dry_disasters = "FALSE")) %>%
+  select(lng, lat, enso_Value, wet_string) %>%
+  #head(n = 50L) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  geom_tile(mapping = aes(x = lng, y = lat, fill = enso_Value, width = 2, height = 2)) +
+  scale_fill_gradient2(low="blue", mid = "white", high = "red") +
+  facet_grid(~wet_string)
+  
+
+```
+```{r}
+
+emdat_hydrological_enso %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  filter(!is.na(lat)) %>%
+  mutate(wet_factor = as_factor(wet)) %>%
+  mutate(Event_factor = fct_recode(as_factor(Event), no_event = "N", negative = "-", positive = "+")) %>%
+  mutate(wet_string = fct_recode(wet_factor, wet_disasters = "TRUE", dry_disasters = "FALSE")) %>%
+  select(lng, lat, Event_factor, wet_string, wet) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  geom_tile(mapping = aes(x = lng, y = lat, width = 2, height = 2, fill = 1, alpha = 0.001)) +
+  facet_grid(cols = vars(wet_string), rows = vars(Event_factor))
+
+```
+```{r}
+
+event_num_months <- enso_data %>%
+  group_by(Event) %>%
+  summarize(num_months = n())
+
+emdat_hydrological_enso %>%
+  left_join(event_num_months, by = c("Event")) %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  filter(!is.na(lat)) %>%
+  mutate(wet_factor = as_factor(wet)) %>%
+  mutate(Event_factor = fct_recode(as_factor(Event), no_event = "N", negative = "-", positive = "+")) %>%
+  mutate(wet_string = fct_recode(wet_factor, wet_disasters = "TRUE", dry_disasters = "FALSE")) %>%
+  select(lng, lat, Event_factor, wet_string, num_months) %>%
+  add_row(lng = 1, lat = 1, Event_factor = 'no_event', wet_string = 'dry_disasters', num_months = 1) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  geom_tile(mapping = aes(x = lng, y = lat, width = 2, height = 2, alpha = 1/num_months, fill = 'red')) +
+  facet_grid(cols = vars(wet_string), rows = vars(Event_factor)) +
+  ggtitle("Same plot as above but scaled by num months")
+
+```
+
+```{r}
+emdat_hydrological_enso %>%
+  left_join(event_num_months, by = c("Event")) %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  filter(!is.na(lat)) %>%
+  mutate(wet_factor = as_factor(wet)) %>%
+  mutate(Event_factor = fct_recode(as_factor(Event), no_event = "N", negative = "-", positive = "+")) %>%
+  mutate(wet_string = fct_recode(wet_factor, wet_disasters = "TRUE", dry_disasters = "FALSE")) %>%
+  select(lng, lat, Event_factor, wet_string, num_months) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  stat_bin_2d(mapping = aes(x = lng, y = lat), binwidth = c(2,2)) +
+  scale_fill_gradient(low = 'white', high = 'red') + 
+  facet_grid(cols = vars(wet_string), rows = vars(Event_factor)) +
+  ggtitle("2D Histogram")
+
+```
+
+```{r}
+
+```
+
