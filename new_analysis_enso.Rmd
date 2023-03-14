@@ -218,7 +218,7 @@ emdat_hydrological_enso %>%
 ```
 ```{r}
 ## calculate relative risk within each box
-### create boxes
+### create boxes 2x2
 
 resy <- 2
 
@@ -255,3 +255,41 @@ emdat_hydrological_enso %>%
 
 ```
 
+```{r}
+## calculate percent of total disasters within each box
+### create boxes 2x2
+
+resy <- 2
+
+emdat_hydrological_enso %>%
+  left_join(event_num_months, by = c("Event")) %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  filter(!is.na(lat)) %>%
+  mutate(wet_factor = as_factor(wet)) %>%
+  mutate(Event_factor = fct_recode(as_factor(Event), no_event = "N", negative = "-", positive = "+")) %>%
+  mutate(wet_string = fct_recode(wet_factor, wet_disasters = "TRUE", dry_disasters = "FALSE")) %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  mutate(dis_no_factor = as_factor(`Dis No`)) %>%
+  group_by(lat_box, lng_box, Event_factor, wet_string) %>%
+  summarize(num_months = first(num_months), num_disasters = n_distinct(dis_no_factor)) %>%
+  mutate(disaster_rate = num_disasters / num_months) %>%
+  pivot_wider(id_cols = c(lat_box, lng_box), names_from = c(Event_factor, wet_string), values_from = c(disaster_rate), values_fill = 0) %>%
+  mutate(positive_wet_percent = positive_wet_disasters / (no_event_wet_disasters + positive_wet_disasters + negative_wet_disasters) , 
+         negative_wet_percent = negative_wet_disasters / (no_event_wet_disasters + positive_wet_disasters + negative_wet_disasters), 
+         positive_dry_percent =  positive_dry_disasters / (no_event_dry_disasters + positive_dry_disasters + negative_dry_disasters),
+         negative_dry_percent =  negative_dry_disasters / (no_event_dry_disasters + positive_dry_disasters + negative_dry_disasters)
+         ) %>%
+  select(lat_box, lng_box, positive_wet_percent, negative_wet_percent, positive_dry_percent, negative_dry_percent) %>%
+  pivot_longer(cols = c(positive_wet_percent, negative_wet_percent, positive_dry_percent, negative_dry_percent), names_to = 'typey', values_to = 'value') %>%
+  mutate(type_factor = as_factor(typey)) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  geom_tile(mapping = aes(x = lng_box, y = lat_box, fill = value, width = resy)) +
+  scale_fill_gradient(low = 'white', high = 'red') +
+  facet_grid(rows = vars(type_factor))+
+  ggtitle("Disaster Percent plot using calculations of the form [positive_wet / all_wet]")
+  
+  
+
+```
