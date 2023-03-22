@@ -230,7 +230,7 @@ emdat_hydrological_enso %>%
 ## calculate relative risk within each box
 ### create boxes acc to resy X resy
 
-resy <- 4
+resy <- 2.5
 
 emdat_hydrological_enso %>%
   left_join(event_num_months, by = c("Event")) %>%
@@ -272,7 +272,7 @@ emdat_hydrological_enso %>%
 ## calculate percent of total disasters within each box
 ### create boxes 2x2
 
-resy <- 4
+resy <- 2.5
 
 emdat_hydrological_enso %>%
   left_join(event_num_months, by = c("Event")) %>%
@@ -304,7 +304,6 @@ emdat_hydrological_enso %>%
   scale_fill_gradient(low = 'white', high = 'red') +
   facet_grid(rows = vars(type_factor))+
   ggtitle("Disaster Percent plot using calculations of the form [positive_wet / all_wet]")
-  
   
 
 ```
