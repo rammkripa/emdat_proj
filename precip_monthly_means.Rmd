@@ -1,0 +1,154 @@
+---
+title: "precip_monthly_means"
+author: "Nandini Ramesh"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#install.packages(c("ncmeta", "tidync", "maps", "ggplot2", "devtools", "fields", "RNetCDF", "raster", "dplyr", "tidyr", "maptools", "geosphere","tmap"))
+libs <- c("ncmeta", "tidync", "maps", "ggplot2", "devtools", "fields", "RNetCDF", "raster", "dplyr", "tidyr", "maptools", "geosphere","tmap","abind")
+sapply(libs, library, character.only = TRUE)
+```
+## Load precip data
+Using data from GPCP v2.3 (monthly) downloaded here: http://apdrc.soest.hawaii.edu/las/v6/dataset?catitem=12824
+```{r}
+filename <- here::here('Desktop', 'projects', 'emdat_proj','data', 'Rain', 'precip.mon.total.1x1.v2020.nc')
+precip <- tidync(filename)
+print(precip)
+```
+```{r}
+
+precip_data <- precip %>% hyper_array()
+prec <- precip_data[[1]][,,709:1512]
+tf <- attr(precip_data,"transforms")
+image.plot(tf$lon$lon, rev(tf$lat$lat), prec[,rev(1:180),575],xlab="Longitude", ylab="Latitude")
+# junk[ , rev(1:10), ]
+```
+```{r}
+preclen <- dim(prec)[3] #You'll need to change the code if this isn't divisible by 12
+nyears <- preclen/12
+t <- c(1:nyears)
+prec_sum <- c()
+for (i in t){
+  if(i==1)
+    prec_sum <- prec[,,1:12]
+  else
+    prec_sum <- prec_sum+prec[,,((12*(i-1))+1):(12*i)]
+}
+prec_clim <- prec_sum/nyears
+prec_anom <- prec
+for (j in c(1:nyears)){
+  #prec_clim <- abind(prec_clim,prec_clim)
+  prec_anom[,,((12*(j-1))+1):(12*j)] <- prec[,,((12*(j-1))+1):(12*j)]-prec_clim
+}
+#prec_anom <- prec-prec_clim
+dim(prec_anom)
+```
+```{r}
+image.plot(tf$lon$lon, rev(tf$lat$lat), prec_anom[,rev(1:180),575],xlab="Longitude", ylab="Latitude")
+```
+```{r}
+enso <- read.csv('~/Desktop/projects/emdat_proj/data/enso_data_copy2.csv')
+```
+```{r}
+event <- enso$Event
+eventshort <- event[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2016-12")] # Why does this end at 2017?
+prec_en <- prec_anom[,,which(eventshort=="+")]
+prec_ln <- prec_anom[,,which(eventshort=="-")]
+prec_n <- prec_anom[,,which(eventshort=="N")]
+prec_en_mean <- apply(prec_en,c(1,2),mean,na.rm=TRUE)
+prec_ln_mean <- apply(prec_ln,c(1,2),mean,na.rm=TRUE)
+prec_n_mean <- apply(prec_n,c(1,2),mean,na.rm=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño Precipitation Anomaly")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_ln_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña Precipitation Anomaly")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_n_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral Precipitation Anomaly")
+#maps::map("world", add=TRUE)
+```
+```{r}
+monthshort <- enso$MonthNum[which(enso$PeriodNum=="1979-01"):which(enso$PeriodNum=="2017-08")]
+eventdjf <- eventshort[which(monthshort==12 | monthshort<3)]
+eventmam <- eventshort[which(monthshort>2 & monthshort<6)]
+eventjja <- eventshort[which(monthshort>5 & monthshort<9)]
+eventson <- eventshort[which(monthshort>8 & monthshort<12)]
+
+prec_djf <- prec_anom[,,which(monthshort==12 | monthshort<3)]
+prec_mam <- prec_anom[,,which(monthshort>2 & monthshort<6)]
+prec_jja <- prec_anom[,,which(monthshort>5 & monthshort<9)]
+prec_son <- prec_anom[,,which(monthshort>8 & monthshort<12)]
+
+prec_djf_en <- prec_djf[,,which(eventdjf=="+")]
+prec_mam_en <- prec_mam[,,which(eventmam=="+")]
+prec_jja_en <- prec_jja[,,which(eventjja=="+")]
+prec_son_en <- prec_son[,,which(eventson=="+")]
+
+prec_djf_ln <- prec_djf[,,which(eventdjf=="-")]
+prec_mam_ln <- prec_mam[,,which(eventmam=="-")]
+prec_jja_ln <- prec_jja[,,which(eventjja=="-")]
+prec_son_ln <- prec_son[,,which(eventson=="-")]
+
+prec_djf_n <- prec_djf[,,which(eventdjf=="N")]
+prec_mam_n <- prec_mam[,,which(eventmam=="N")]
+prec_jja_n <- prec_jja[,,which(eventjja=="N")]
+prec_son_n <- prec_son[,,which(eventson=="N")]
+
+prec_djf_en_mean <- apply(prec_djf_en,c(1,2),mean,na.rm=TRUE)
+prec_mam_en_mean <- apply(prec_mam_en,c(1,2),mean,na.rm=TRUE)
+prec_jja_en_mean <- apply(prec_jja_en,c(1,2),mean,na.rm=TRUE)
+prec_son_en_mean <- apply(prec_son_en,c(1,2),mean,na.rm=TRUE)
+
+prec_djf_ln_mean <- apply(prec_djf_ln,c(1,2),mean,na.rm=TRUE)
+prec_mam_ln_mean <- apply(prec_mam_ln,c(1,2),mean,na.rm=TRUE)
+prec_jja_ln_mean <- apply(prec_jja_ln,c(1,2),mean,na.rm=TRUE)
+prec_son_ln_mean <- apply(prec_son_ln,c(1,2),mean,na.rm=TRUE)
+
+prec_djf_n_mean <- apply(prec_djf_n,c(1,2),mean,na.rm=TRUE)
+prec_mam_n_mean <- apply(prec_mam_n,c(1,2),mean,na.rm=TRUE)
+prec_jja_n_mean <- apply(prec_jja_n,c(1,2),mean,na.rm=TRUE)
+prec_son_n_mean <- apply(prec_son_n,c(1,2),mean,na.rm=TRUE)
+```
+```{r}
+dev.new(width=100, height=60, unit="px")
+par(mfrow = c(2,2))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: DJF")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: MAM")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: JJA")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: SON")
+#maps::map("world", add=TRUE)
+```
+
+```{r}
+dev.new(width=100, height=60, unit="px")
+par(mfrow = c(2,2))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: DJF")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: MAM")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: JJA")
+#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: SON")
+#maps::map("world", add=TRUE)
+```
+
+```{r}
+dev.new(width=100, height=60, unit="px")
+par(mfrow = c(2,2))
+image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_djf_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: DJF")
+maps::map("world", add=TRUE)
+image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_mam_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: MAM")
+maps::map("world", add=TRUE)
+image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_jja_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: JJA")
+maps::map("world", add=TRUE)
+image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_son_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: SON")
+maps::map("world", add=TRUE)
+```
