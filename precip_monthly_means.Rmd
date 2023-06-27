@@ -1,6 +1,6 @@
 ---
 title: "precip_monthly_means"
-author: "Nandini Ramesh"
+author: "Nandini Ramesh & Ram M Kripa"
 output: html_document
 date: "`r Sys.Date()`"
 ---
@@ -25,10 +25,11 @@ print(precip)
 ```{r}
 
 precip_data <- precip %>% hyper_array()
-prec <- precip_data[[1]][,,709:1512]
+prec <- precip_data[[1]][,,709:1524]
 tf <- attr(precip_data,"transforms")
-image.plot(tf$lon$lon, rev(tf$lat$lat), prec[,rev(1:180),575],xlab="Longitude", ylab="Latitude")
+image.plot(tf$lon$lon, rev(tf$lat$lat), prec[,rev(1:180),576],xlab="Longitude", ylab="Latitude")
 # junk[ , rev(1:10), ]
+
 ```
 ```{r}
 preclen <- dim(prec)[3] #You'll need to change the code if this isn't divisible by 12
@@ -45,32 +46,50 @@ prec_clim <- prec_sum/nyears
 prec_anom <- prec
 for (j in c(1:nyears)){
   #prec_clim <- abind(prec_clim,prec_clim)
-  prec_anom[,,((12*(j-1))+1):(12*j)] <- prec[,,((12*(j-1))+1):(12*j)]-prec_clim
+  prec_anom[,,((12*(j-1))+1):(12*j)] <- (prec[,,((12*(j-1))+1):(12*j)]-prec_clim)
 }
 #prec_anom <- prec-prec_clim
 dim(prec_anom)
 ```
 ```{r}
-image.plot(tf$lon$lon, rev(tf$lat$lat), prec_anom[,rev(1:180),575],xlab="Longitude", ylab="Latitude")
+image.plot(tf$lon$lon, rev(tf$lat$lat), prec_anom[,rev(1:180),576],xlab="Longitude", ylab="Latitude")
+maps::map("world", add=TRUE, wrap = c(0, 360))
 ```
 ```{r}
 enso <- read.csv('~/Desktop/projects/emdat_proj/data/enso_data_copy2.csv')
 ```
 ```{r}
 event <- enso$Event
-eventshort <- event[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2016-12")] # Why does this end at 2017?
+eventshort <- event[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2017-08")] # Why does this end at 2017?
 prec_en <- prec_anom[,,which(eventshort=="+")]
 prec_ln <- prec_anom[,,which(eventshort=="-")]
 prec_n <- prec_anom[,,which(eventshort=="N")]
 prec_en_mean <- apply(prec_en,c(1,2),mean,na.rm=TRUE)
 prec_ln_mean <- apply(prec_ln,c(1,2),mean,na.rm=TRUE)
 prec_n_mean <- apply(prec_n,c(1,2),mean,na.rm=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño Precipitation Anomaly")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_ln_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña Precipitation Anomaly")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_n_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral Precipitation Anomaly")
-#maps::map("world", add=TRUE)
+cap_at_twenty <- function(vec_of_length_one) {
+  if (is.na(vec_of_length_one)) {
+    return(vec_of_length_one)
+  }
+  else if (vec_of_length_one > 20) {
+    return(c(20))
+  }
+  else if (vec_of_length_one < (-20)) {
+    return(c(-20))
+  }
+  else {
+    return(vec_of_length_one)
+  }
+}
+prec_en_mean_changed <- apply(prec_en_mean, c(1, 2), cap_at_twenty)
+prec_ln_mean_changed <- apply(prec_ln_mean, c(1, 2), cap_at_twenty)
+prec_n_mean_changed <- apply(prec_n_mean, c(1, 2), cap_at_twenty)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_en_mean_changed[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-20,20), main="El Niño Precipitation Anomaly")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_ln_mean_changed[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-20,20), main="La Niña Precipitation Anomaly")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_n_mean_changed[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-20,20), main="Neutral Precipitation Anomaly")
+maps::map("world", add=TRUE, wrap = c(0, 360))
 ```
 ```{r}
 monthshort <- enso$MonthNum[which(enso$PeriodNum=="1979-01"):which(enso$PeriodNum=="2017-08")]
@@ -117,38 +136,38 @@ prec_son_n_mean <- apply(prec_son_n,c(1,2),mean,na.rm=TRUE)
 ```{r}
 dev.new(width=100, height=60, unit="px")
 par(mfrow = c(2,2))
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: DJF")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: MAM")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: JJA")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: SON")
-#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: DJF")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: MAM")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: JJA")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: SON")
+maps::map("world", add=TRUE, wrap = c(0, 360))
 ```
 
 ```{r}
 dev.new(width=100, height=60, unit="px")
 par(mfrow = c(2,2))
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: DJF")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: MAM")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: JJA")
-#maps::map("world", add=TRUE)
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: SON")
-#maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_ln_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: DJF")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_ln_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: MAM")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_ln_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: JJA")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_ln_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="La Niña: SON")
+maps::map("world", add=TRUE, wrap = c(0, 360))
 ```
 
 ```{r}
 dev.new(width=100, height=60, unit="px")
 par(mfrow = c(2,2))
-image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_djf_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: DJF")
-maps::map("world", add=TRUE)
-image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_mam_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: MAM")
-maps::map("world", add=TRUE)
-image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_jja_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: JJA")
-maps::map("world", add=TRUE)
-image.plot(tf$LONN71_72$LONN71_72, tf$LAT$LAT,prec_son_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: SON")
-maps::map("world", add=TRUE)
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_n_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: DJF")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_n_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: MAM")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_n_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: JJA")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_n_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="Neutral: SON")
+maps::map("world", add=TRUE, wrap = c(0, 360))
 ```

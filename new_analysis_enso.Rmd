@@ -21,7 +21,7 @@ library(rnaturalearthdata)
 ## Loading In the Data
 
 ```{r}
-emdat <- read_csv(here("full_emdat_geocoded_finally.csv"))
+emdat <- read_csv('~/Desktop/projects/emdat_proj/full_emdat_geocoded_finally.csv')
 ```
 # How many disasters were located?
 
@@ -64,7 +64,7 @@ emdat_hydrological %>%
 # ENSO data
 
 ```{r}
-enso_data <- read_csv(here("data","enso_data_copy2.csv"))
+enso_data <- read_csv('~/Desktop/projects/emdat_proj/data/enso_data_copy2.csv')
 enso_data %>%
   group_by(Event) %>%
   count()
@@ -255,7 +255,7 @@ emdat_hydrological_enso %>%
   select(lat_box, lng_box, positive_wet_relative_risk, negative_wet_relative_risk, positive_dry_relative_risk, negative_dry_relative_risk) %>%
   pivot_longer(cols = c(positive_wet_relative_risk, negative_wet_relative_risk, positive_dry_relative_risk, negative_dry_relative_risk), names_to = 'risk', values_to = 'value') %>%
   mutate(risk_factor = as_factor(risk), values_cleaned = if_else(is.infinite(value), 18, value)) %>%
-  mutate(relative_risk_cleaned = if_else(is.nan(values_cleaned), 0, values_cleaned)) %>%
+  mutate(relative_risk_cleaned = if_else(is.nan(values_cleaned), 1, values_cleaned)) %>%
   mutate(relative_risk_cleaned2 = if_else((relative_risk_cleaned) > 2, 2, relative_risk_cleaned)) %>%
   ggplot() +
   geom_sf(data = world_map) +

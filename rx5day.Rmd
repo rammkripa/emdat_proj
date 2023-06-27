@@ -1,0 +1,264 @@
+---
+title: "rx5day notebook"
+author: "Ram M Kripa"
+date: "2023-05-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+#install.packages(c("ncmeta", "tidync", "maps", "ggplot2", "devtools", "fields", "RNetCDF", "raster", "dplyr", "tidyr", "maptools", "geosphere","tmap"))
+libs <- c("ncmeta", "tidync", "maps", "ggplot2", "devtools", "fields", "RNetCDF", "raster", "dplyr", "tidyr", "maptools", "geosphere","tmap","abind")
+sapply(libs, library, character.only = TRUE)
+```
+## Load precip data
+Using data from GPCP v2.3 (monthly) downloaded here: http://apdrc.soest.hawaii.edu/las/v6/dataset?catitem=12824
+```{r}
+filename <- here::here('Desktop', 'projects', 'emdat_proj','data', 'Rain', 'HadEX3_Rx5day_MON.nc')
+precip <- tidync(filename)
+print(precip)
+```
+
+```{r}
+
+precip_data <- precip %>% hyper_array()
+# starts 01/1901
+# ends 12/2018
+# we want to start from 01/1950
+# so look at 1 + 12 * (1950 - 1901)
+# =589
+# End 12/2017
+prec <- precip_data[[1]][,,589:1404]
+tf <- attr(precip_data,"transforms")
+image.plot(tf$longitude$longitude, tf$latitude$latitude, prec[,,200],xlab="Longitude", ylab="Latitude")
+# junk[ , rev(1:10), ]
+maps::map("world", add=TRUE, wrap = c(0, 360))
+```
+
+```{r}
+prec_changed <- apply(prec, c(1,2), replace_na, replace = 0) %>%
+  aperm(c(2,3,1))
+image.plot(tf$longitude$longitude, tf$latitude$latitude, prec_changed[,,200],xlab="Longitude", ylab="Latitude")
+# junk[ , rev(1:10), ]`
+maps::map("world", add=TRUE, wrap = c(0, 360))
+```
+
+```{r}
+preclen <- dim(prec)[3] #You'll need to change the code if this isn't divisible by 12
+nyears <- preclen/12
+t <- c(1:nyears)
+prec_num_years <- array(0, dim = c(192, 144, 12))
+prec_sum <- c()
+for (i in t){
+  prec_current <- prec_changed[,,((12*(i-1))+1):(12*i)]
+  prec_flag <- prec[,,((12*(i-1))+1):(12*i)] %>% 
+    apply(c(1, 2), is.na) %>%
+    aperm(c(2,3,1)) # 192 x 144 x 12
+  prec_flag_inv <- 1 - prec_flag
+  if(i==1) {
+    prec_sum <- prec_current
+    prec_num_years <- prec_flag_inv
+  }
+  else {
+    prec_sum <- prec_sum+prec_current
+    prec_num_years <- prec_num_years + prec_flag_inv
+  }
+}
+prec_clim <- prec_sum/prec_num_years
+prec_anom <- prec
+prec_anom2 <- prec
+for (j in c(1:nyears)){
+  #prec_clim <- abind(prec_clim,prec_clim)
+  prec_anom[,,((12*(j-1))+1):(12*j)] <- (prec[,,((12*(j-1))+1):(12*j)]-prec_clim)
+  prec_anom2[,,((12*(j-1))+1):(12*j)] <- (prec[,,((12*(j-1))+1):(12*j)]-prec_clim) / prec_clim
+}
+#prec_anom <- prec-prec_clim
+dim(prec_anom)
+```
+```{r}
+dim(prec_anom)
+```
+
+
+```{r}
+image.plot(tf$longitude$longitude, tf$latitude$latitude, prec_num_years[,,10],xlab="Longitude", ylab="Latitude")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+```
+
+```{r}
+enso <- read.csv('~/Desktop/projects/emdat_proj/data/enso_data_copy2.csv')
+```
+```{r}
+event <- enso$Event
+eventshort <- event[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2017-08")] # Why does this end at 2017?
+prec_en <- prec_anom[,,which(eventshort=="+")]
+prec_ln <- prec_anom[,,which(eventshort=="-")]
+prec_n <- prec_anom[,,which(eventshort=="N")]
+prec_en_mean <- apply(prec_en,c(1,2),mean,na.rm=TRUE)
+prec_ln_mean <- apply(prec_ln,c(1,2),mean,na.rm=TRUE)
+prec_n_mean <- apply(prec_n,c(1,2),mean,na.rm=TRUE)
+cap_at <- function(vec_of_length_one, num) {
+  if (is.na(vec_of_length_one)) {
+    return(vec_of_length_one)
+  }
+  else if (vec_of_length_one > num) {
+    return(c(num))
+  }
+  else if (vec_of_length_one < (-1 * num)) {
+    return(c(-num))
+  }
+  else {
+    return(vec_of_length_one)
+  }
+}
+prec_en_mean_changed <- apply(prec_en_mean, c(1, 2), cap_at, num = 10)
+prec_ln_mean_changed <- apply(prec_ln_mean, c(1, 2), cap_at, num = 10)
+prec_n_mean_changed <- apply(prec_n_mean, c(1, 2), cap_at, num = 10)
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_en_mean_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-10, 10), main="El Niño rx5day Anomaly Raw")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_ln_mean_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"),zlim=c(-10, 10), main="La Niña rx5day Anomaly Raw")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_n_mean_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-10, 10), main="Neutral rx5day Anomaly Raw")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+```
+
+
+```{r}
+event <- enso$Event
+eventshort <- event[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2017-08")] # Why does this end at 2017?
+prec_en <- prec_anom2[,,which(eventshort=="+")]
+prec_ln <- prec_anom2[,,which(eventshort=="-")]
+prec_n <- prec_anom2[,,which(eventshort=="N")]
+prec_en_mean <- apply(prec_en,c(1,2),mean,na.rm=TRUE)
+prec_ln_mean <- apply(prec_ln,c(1,2),mean,na.rm=TRUE)
+prec_n_mean <- apply(prec_n,c(1,2),mean,na.rm=TRUE)
+cap_at <- function(vec_of_length_one, num) {
+  if (is.na(vec_of_length_one)) {
+    return(vec_of_length_one)
+  }
+  else if (vec_of_length_one > num) {
+    return(c(num))
+  }
+  else if (vec_of_length_one < (-1 * num)) {
+    return(c(-num))
+  }
+  else {
+    return(vec_of_length_one)
+  }
+}
+prec_en_mean_changed <- apply(prec_en_mean, c(1, 2), cap_at, num = 0.4)
+prec_ln_mean_changed <- apply(prec_ln_mean, c(1, 2), cap_at, num = 0.4)
+prec_n_mean_changed <- apply(prec_n_mean, c(1, 2), cap_at, num = 0.4)
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_en_mean_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-0.4, 0.4), main="El Niño rx5day Anomaly Percent")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_ln_mean_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"),zlim=c(-0.4, 0.4), main="La Niña rx5day Anomaly Percent")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_n_mean_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-0.4, 0.4), main="Neutral rx5day Anomaly Percent")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+
+```
+
+```{r}
+# Add Months Back Into The Mix With Percent
+monthshort <- enso$MonthNum[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2017-08")]
+eventdjf <- eventshort[which(monthshort==12 | monthshort<3)]
+eventmam <- eventshort[which(monthshort>2 & monthshort<6)]
+eventjja <- eventshort[which(monthshort>5 & monthshort<9)]
+eventson <- eventshort[which(monthshort>8 & monthshort<12)]
+
+prec_djf <- prec_anom2[,,which(monthshort==12 | monthshort<3)]
+prec_mam <- prec_anom2[,,which(monthshort>2 & monthshort<6)]
+prec_jja <- prec_anom2[,,which(monthshort>5 & monthshort<9)]
+prec_son <- prec_anom2[,,which(monthshort>8 & monthshort<12)]
+
+prec_djf_en <- prec_djf[,,which(eventdjf=="+")]
+prec_mam_en <- prec_mam[,,which(eventmam=="+")]
+prec_jja_en <- prec_jja[,,which(eventjja=="+")]
+prec_son_en <- prec_son[,,which(eventson=="+")]
+
+prec_djf_ln <- prec_djf[,,which(eventdjf=="-")]
+prec_mam_ln <- prec_mam[,,which(eventmam=="-")]
+prec_jja_ln <- prec_jja[,,which(eventjja=="-")]
+prec_son_ln <- prec_son[,,which(eventson=="-")]
+
+prec_djf_n <- prec_djf[,,which(eventdjf=="N")]
+prec_mam_n <- prec_mam[,,which(eventmam=="N")]
+prec_jja_n <- prec_jja[,,which(eventjja=="N")]
+prec_son_n <- prec_son[,,which(eventson=="N")]
+
+prec_djf_en_mean <- apply(prec_djf_en,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_mam_en_mean <- apply(prec_mam_en,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_jja_en_mean <- apply(prec_jja_en,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_son_en_mean <- apply(prec_son_en,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+
+prec_djf_ln_mean <- apply(prec_djf_ln,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_mam_ln_mean <- apply(prec_mam_ln,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_jja_ln_mean <- apply(prec_jja_ln,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_son_ln_mean <- apply(prec_son_ln,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+
+prec_djf_n_mean <- apply(prec_djf_n,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_mam_n_mean <- apply(prec_mam_n,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_jja_n_mean <- apply(prec_jja_n,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_son_n_mean <- apply(prec_son_n,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+```
+
+```{r}
+# Show El Nino Percent Anom
+dev.new(width=100, height=60, unit="px")
+par(mfrow = c(2,2))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_djf_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: DJF")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_mam_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: MAM")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_jja_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: JJA")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_son_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: SON")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+```
+
+```{r}
+# Show La Nina Percent Anom
+dev.new(width=100, height=60, unit="px")
+par(mfrow = c(2,2))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_djf_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Niña: DJF")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_mam_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Niña: MAM")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_jja_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Niña: JJA")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_son_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Niña: SON")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+```
+```{r}
+# Show Neutral Percent Anom
+dev.new(width=100, height=60, unit="px")
+par(mfrow = c(2,2))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_djf_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="Neutral: DJF")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_mam_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="Neutral: MAM")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_jja_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="Neutral: JJA")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_son_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="Neutral: SON")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+```
+
+```{r}
+
+```
