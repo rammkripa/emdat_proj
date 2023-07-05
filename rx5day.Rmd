@@ -80,7 +80,7 @@ for (j in c(1:nyears)){
 dim(prec_anom)
 ```
 ```{r}
-dim(prec_anom)
+dim(prec_clim)
 ```
 
 
@@ -161,6 +161,46 @@ image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_n_mean_changed,xlab
 maps::map("world", add=TRUE, wrap = c(0, 360))
 
 ```
+
+
+```{r}
+event <- enso$Event
+eventshort <- event[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2017-08")] # Why does this end at 2017?
+prec_en <- prec_anom2[,,which(eventshort=="+")]
+prec_ln <- prec_anom2[,,which(eventshort=="-")]
+prec_n <- prec_anom2[,,which(eventshort=="N")]
+prec_en_max <- apply(prec_en,c(1,2),max,na.rm=TRUE)
+prec_ln_max <- apply(prec_ln,c(1,2),max,na.rm=TRUE)
+prec_n_max <- apply(prec_n,c(1,2),max,na.rm=TRUE)
+cap_at <- function(vec_of_length_one, num) {
+  if (is.na(vec_of_length_one)) {
+    return(vec_of_length_one)
+  }
+  else if (is.infinite(vec_of_length_one)){
+    return(c(NA))
+  }
+  else if (vec_of_length_one > num) {
+    return(c(num))
+  }
+  else if (vec_of_length_one < (-1 * num)) {
+    return(c(-num))
+  }
+  else {
+    return(vec_of_length_one)
+  }
+}
+prec_en_max_changed <- apply(prec_en_max, c(1, 2), cap_at, num = 15)
+prec_ln_max_changed <- apply(prec_ln_max, c(1, 2), cap_at, num = 15)
+prec_n_max_changed <- apply(prec_n_max, c(1, 2), cap_at, num = 15)
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_en_max_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-15, 15), main="El Niño rx5day Anomaly Percent using max")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_ln_max_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"),zlim=c(-15, 15), main="La Niña rx5day Anomaly Percent using max")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_n_max_changed,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(11, "BrBG"), zlim=c(-15, 15), main="Neutral rx5day Anomaly Percent using max")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+
+```
+
 
 ```{r}
 # Add Months Back Into The Mix With Percent

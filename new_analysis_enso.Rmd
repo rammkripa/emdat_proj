@@ -307,3 +307,57 @@ emdat_hydrological_enso %>%
   
 
 ```
+
+
+```{r}
+# SPLIT YEAR INTO 2
+# Apr to Sep
+# Oct to Mar
+## calculate relative risk within each box
+### create boxes acc to resy X resy
+
+resy <- 2.5
+
+event_half_num_months <- enso_data %>%
+  mutate(spring_summery = as_factor((MonthNum >= 4) & (MonthNum <= 9))) %>%
+  mutate(half_year = fct_recode(spring_summery, spring_summer = "TRUE", fall_winter = "FALSE")) %>%
+  group_by(Event, half_year) %>%
+  summarize(num_months = n())
+
+emdat_hydrological_enso %>%
+  mutate(spring_summery = as_factor((end_month >= 4) & (end_month <= 9))) %>%
+  mutate(half_year = fct_recode(spring_summery, spring_summer = "TRUE", fall_winter = "FALSE")) %>%
+  left_join(event_half_num_months, by = c("Event", "half_year")) %>%
+  filter(!is.na(enso_Value)) %>%
+  filter(!is.na(wet)) %>%
+  filter(!is.na(lat)) %>%
+  mutate(wet_factor = as_factor(wet)) %>%
+  mutate(Event_factor = fct_recode(as_factor(Event), no_event = "N", negative = "-", positive = "+")) %>%
+  mutate(wet_string = fct_recode(wet_factor, wet_disasters = "TRUE", dry_disasters = "FALSE")) %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  mutate(dis_no_factor = as_factor(`Dis No`)) %>%
+  group_by(lat_box, lng_box, Event_factor, wet_string, dis_no_factor, half_year) %>%
+  summarize(num_months = first(num_months), num_disaster_month = mean(num_months_disaster)) %>%
+  group_by(lat_box, lng_box, Event_factor, wet_string, half_year) %>%
+  summarize(num_months = first(num_months), num_disaster_months = sum(num_disaster_month)) %>%
+  mutate(disaster_rate = num_disaster_months / num_months) %>%
+  pivot_wider(id_cols = c(lat_box, lng_box, half_year), names_from = c(Event_factor, wet_string), values_from = c(disaster_rate), values_fill = 0) %>%
+  mutate(positive_wet_relative_risk = positive_wet_disasters / no_event_wet_disasters, 
+         negative_wet_relative_risk = negative_wet_disasters / no_event_wet_disasters, 
+         positive_dry_relative_risk =  positive_dry_disasters / no_event_dry_disasters,
+         negative_dry_relative_risk = negative_dry_disasters / no_event_dry_disasters) %>%
+  select(lat_box, lng_box, half_year, positive_wet_relative_risk, negative_wet_relative_risk, positive_dry_relative_risk, negative_dry_relative_risk) %>%
+  pivot_longer(cols = c(positive_wet_relative_risk, negative_wet_relative_risk, positive_dry_relative_risk, negative_dry_relative_risk), names_to = 'risk', values_to = 'value') %>%
+  mutate(risk_factor = as_factor(risk), values_cleaned = if_else(is.infinite(value), 18, value)) %>%
+  mutate(relative_risk_cleaned = if_else(is.nan(values_cleaned), 1, values_cleaned)) %>%
+  mutate(relative_risk_cleaned2 = if_else((relative_risk_cleaned) > 2, 2, relative_risk_cleaned)) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  geom_tile(mapping = aes(x = lng_box, y = lat_box, fill = relative_risk_cleaned2, width = resy)) +
+  scale_fill_gradient2(midpoint = 1, limits = c(0, 2), low = 'cyan', high = 'red') +
+  facet_grid(rows = vars(risk_factor), cols = vars(half_year))+
+  ggtitle("Half year Relative risk plot using calculations of the form [{num_disasters_positive_wet / num_months_positive} / {num_disasters_no_event_wet / num_months_no_event}]")
+  
+  
+
+```
