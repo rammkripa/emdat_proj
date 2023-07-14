@@ -350,10 +350,11 @@ emdat_hydrological_enso %>%
   pivot_longer(cols = c(positive_wet_relative_risk, negative_wet_relative_risk, positive_dry_relative_risk, negative_dry_relative_risk), names_to = 'risk', values_to = 'value') %>%
   mutate(risk_factor = as_factor(risk), values_cleaned = if_else(is.infinite(value), 18, value)) %>%
   mutate(relative_risk_cleaned = if_else(is.nan(values_cleaned), 1, values_cleaned)) %>%
-  mutate(relative_risk_cleaned2 = if_else((relative_risk_cleaned) > 2, 2, relative_risk_cleaned)) %>%
+  mutate(relative_risk_cleaned_truncatedat2 = if_else((relative_risk_cleaned) > 2, 2, relative_risk_cleaned)) %>%
+  select(lat_box, lng_box, half_year, risk_factor, relative_risk_cleaned, relative_risk_cleaned_truncatedat2) %>%
   ggplot() +
   geom_sf(data = world_map) +
-  geom_tile(mapping = aes(x = lng_box, y = lat_box, fill = relative_risk_cleaned2, width = resy)) +
+  geom_tile(mapping = aes(x = lng_box, y = lat_box, fill = relative_risk_cleaned_truncatedat2, width = resy)) +
   scale_fill_gradient2(midpoint = 1, limits = c(0, 2), low = 'cyan', high = 'red') +
   facet_grid(rows = vars(risk_factor), cols = vars(half_year))+
   ggtitle("Half year Relative risk plot using calculations of the form [{num_disasters_positive_wet / num_months_positive} / {num_disasters_no_event_wet / num_months_no_event}]")

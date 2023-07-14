@@ -135,14 +135,14 @@ prec_son_n_mean <- apply(prec_son_n,c(1,2),mean,na.rm=TRUE)
 ```
 ```{r}
 dev.new(width=100, height=60, unit="px")
-par(mfrow = c(2,2))
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: DJF")
+#par(mfrow = c(2,2))
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_djf_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: DJF")
 maps::map("world", add=TRUE, wrap = c(0, 360))
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: MAM")
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_mam_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: MAM")
 maps::map("world", add=TRUE, wrap = c(0, 360))
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: JJA")
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_jja_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4),  main="El Niño: JJA")
 maps::map("world", add=TRUE, wrap = c(0, 360))
-image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Niño: SON")
+image.plot(tf$lon$lon, rev(tf$lat$lat),prec_son_en_mean[,rev(1:180)],xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), zlim=c(-4,4), main="El Niño: SON")
 maps::map("world", add=TRUE, wrap = c(0, 360))
 ```
 

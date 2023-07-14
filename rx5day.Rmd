@@ -205,30 +205,55 @@ maps::map("world", add=TRUE, wrap = c(0, 360))
 ```{r}
 # Add Months Back Into The Mix With Percent
 monthshort <- enso$MonthNum[which(enso$PeriodNum=="1950-01"):which(enso$PeriodNum=="2017-08")]
+event_spring_summer <- eventshort[which(monthshort>=4 & monthshort<=9)]
+event_fall_winter <- eventshort[which(monthshort<4 | monthshort>9)]
 eventdjf <- eventshort[which(monthshort==12 | monthshort<3)]
 eventmam <- eventshort[which(monthshort>2 & monthshort<6)]
 eventjja <- eventshort[which(monthshort>5 & monthshort<9)]
 eventson <- eventshort[which(monthshort>8 & monthshort<12)]
 
+prec_spring_summer <- prec_anom2[,,which(monthshort>=4 & monthshort<=9)]
+prec_fall_winter <- prec_anom2[,,which(monthshort<4 | monthshort>9)]
 prec_djf <- prec_anom2[,,which(monthshort==12 | monthshort<3)]
 prec_mam <- prec_anom2[,,which(monthshort>2 & monthshort<6)]
 prec_jja <- prec_anom2[,,which(monthshort>5 & monthshort<9)]
 prec_son <- prec_anom2[,,which(monthshort>8 & monthshort<12)]
 
+prec_spring_summer_en <- prec_spring_summer[,,which(event_spring_summer=="+")]
+prec_fall_winter_en <- prec_fall_winter[,,which(event_fall_winter=="+")]
 prec_djf_en <- prec_djf[,,which(eventdjf=="+")]
 prec_mam_en <- prec_mam[,,which(eventmam=="+")]
 prec_jja_en <- prec_jja[,,which(eventjja=="+")]
 prec_son_en <- prec_son[,,which(eventson=="+")]
 
+prec_spring_summer_ln <- prec_spring_summer[,,which(event_spring_summer=="-")]
+prec_fall_winter_ln <- prec_fall_winter[,,which(event_fall_winter=="-")]
 prec_djf_ln <- prec_djf[,,which(eventdjf=="-")]
 prec_mam_ln <- prec_mam[,,which(eventmam=="-")]
 prec_jja_ln <- prec_jja[,,which(eventjja=="-")]
 prec_son_ln <- prec_son[,,which(eventson=="-")]
 
+prec_spring_summer_n <- prec_spring_summer[,,which(event_spring_summer=="N")]
+prec_fall_winter_n <- prec_fall_winter[,,which(event_fall_winter=="N")]
 prec_djf_n <- prec_djf[,,which(eventdjf=="N")]
 prec_mam_n <- prec_mam[,,which(eventmam=="N")]
 prec_jja_n <- prec_jja[,,which(eventjja=="N")]
 prec_son_n <- prec_son[,,which(eventson=="N")]
+
+prec_spring_summer_en_mean <- apply(prec_spring_summer_en,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_fall_winter_en_mean <- apply(prec_fall_winter_en,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+
+prec_spring_summer_ln_mean <- apply(prec_spring_summer_ln,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_fall_winter_ln_mean <- apply(prec_fall_winter_ln,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+
+prec_spring_summer_n_mean <- apply(prec_spring_summer_n,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
+prec_fall_winter_n_mean <- apply(prec_fall_winter_n,c(1,2),mean,na.rm=TRUE) %>%
+                    apply(c(1, 2), cap_at, num = 0.4)
 
 prec_djf_en_mean <- apply(prec_djf_en,c(1,2),mean,na.rm=TRUE) %>%
                     apply(c(1, 2), cap_at, num = 0.4)
@@ -299,6 +324,45 @@ image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_son_n_mean,xlab="Lo
 maps::map("world", add=TRUE, wrap = c(0, 360))
 ```
 
-```{r}
+# Spring Summer and Fall Winter Split
 
+```{r}
+# Show all for Sp/Su and Fa/Wi
+dev.new(width=900, height=900, unit="px")
+#par(mfrow = c(3,3))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_spring_summer_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Nino: Sp/Su")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_spring_summer_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Nina: Sp/Su")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_spring_summer_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="Neutral: Sp/Su")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_fall_winter_en_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="EL Nino: Fa/Wi")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_fall_winter_ln_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Nina: Fa/Wi")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_fall_winter_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="Neutral: Fa/Wi")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+
+```
+# Change unit of analysis to half yearly and Compare El Nino to Neutral and La Nina to Neutral
+
+```{r}
+prec_fall_winter_en_vs_n_mean <- (prec_fall_winter_en_mean - prec_fall_winter_n_mean) %>%
+                    apply(c(1, 2), cap_at, num = 0.5)
+prec_fall_winter_ln_vs_n_mean <- (prec_fall_winter_ln_mean - prec_fall_winter_n_mean) %>%
+                    apply(c(1, 2), cap_at, num = 0.5)
+prec_spring_summer_en_vs_n_mean <- (prec_spring_summer_en_mean - prec_spring_summer_n_mean) %>%
+                    apply(c(1, 2), cap_at, num = 0.5)
+prec_spring_summer_ln_vs_n_mean <- (prec_spring_summer_ln_mean - prec_spring_summer_n_mean) %>%
+                    apply(c(1, 2), cap_at, num = 0.5)
+
+dev.new(width=900, height=900, unit="px")
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_spring_summer_en_vs_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="El Nino Vs Neutral: Sp/Su")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_spring_summer_ln_vs_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Nina Vs Neutral: Sp/Su")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_fall_winter_en_vs_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="EL Nino Vs Neutral: Fa/Wi")
+maps::map("world", add=TRUE, wrap = c(0, 360))
+image.plot(tf$longitude$longitude, tf$latitude$latitude,prec_fall_winter_ln_vs_n_mean,xlab="Longitude", ylab="Latitude", col=RColorBrewer::brewer.pal(9, "BrBG"), main="La Nina Vs Neutral: Fa/Wi")
+maps::map("world", add=TRUE, wrap = c(0, 360))
 ```
