@@ -47,7 +47,7 @@ emdat %>%
 # Restrict to dry and wet hydrological disasters
 
 ```{r}
-dry_list <- c("Drought", "Extreme temperature", "Wildfire")
+dry_list <- c("Drought", "Wildfire")
 wet_list <- c("Flood", "Landslide", "Storm")
 
 emdat_hydrological <- emdat %>%
@@ -362,3 +362,111 @@ emdat_hydrological_enso %>%
   
 
 ```
+
+## Dry Disasters
+
+```{r}
+resy <- 2.5
+
+emdat_hydrological_enso %>%
+  filter(dry) %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  group_by(`Dis No`, lat_box, lng_box) %>%
+  summarise(disaster_type = first(`Disaster Type`)) %>%
+  group_by(disaster_type, lat_box, lng_box) %>%
+  summarise(county = n()) %>%
+  filter(county > 0) %>%
+  ggplot() +
+  geom_sf(data = world_map) +
+  geom_tile(mapping = aes(x = lng_box, y = lat_box, fill = county, width = resy)) +
+  scale_fill_continuous(type="gradient", low = "white", high = "red") +
+  facet_grid(rows = vars(disaster_type))+
+  ggtitle("Dry disaster types around the world")
+  
+  
+  
+```
+
+```{r}
+emdat_hydrological_enso %>%
+  filter(dry) %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  group_by(`Dis No`) %>%
+  summarise(disaster_type = first(`Disaster Type`)) %>%
+  group_by(disaster_type) %>%
+  summarise(county = n())
+
+```
+
+```{r}
+emdat_hydrological_enso %>%
+  filter(dry) %>%
+  filter(!is.na(Event)) %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  group_by(`Dis No`, Event) %>%
+  summarise(disaster_type = first(`Disaster Type`)) %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = disaster_type, stat = "count")) +
+  facet_grid(~Event)
+
+```
+
+```{r}
+emdat_hydrological_enso %>%
+  filter(dry) %>%
+  filter(!is.na(Event)) %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  group_by(`Dis No`, Event) %>%
+  summarise(disaster_type = first(`Disaster Type`)) %>%
+  ggplot() +
+  geom_bar(mapping = aes(x = Event, stat = "count")) +
+  facet_grid(~disaster_type)
+
+```
+## Looking at ENSO Value
+
+```{r}
+emdat_hydrological_enso %>%
+  group_by(`Dis No`) %>%
+  summarize(disaster_type = first(`Disaster Type`), lat = mean(lat), lng = mean(lng), enso_value = mean(enso_Value), Event = first(Event), dry = first(dry), wet = first(wet)) %>%
+  ggplot() +
+  geom_histogram(mapping = aes(x = enso_value), binwidth = 0.1) 
+
+```
+
+```{r}
+emdat_hydrological_enso %>%
+  filter(!is.na(`Disaster Type`)) %>%
+  group_by(`Dis No`) %>%
+  summarize(disaster_type = first(`Disaster Type`), lat = mean(lat), lng = mean(lng), enso_value = mean(enso_Value), Event = first(Event), dry = first(dry), wet = first(wet)) %>%
+  ggplot() +
+  geom_histogram(mapping = aes(x = enso_value), binwidth = 0.1) +
+  facet_grid(~disaster_type)
+
+
+```
+## Create Data as NetCDF
+
+```{r}
+resy <- 2.5
+
+df_to_be_spatialized <- emdat_hydrological_enso %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  mutate(month_number = (end_year * 12) + end_month) %>%
+  group_by(lat_box, lng_box, month_number, `Dis No`, `Disaster Type`) %>%
+  summarize(enso_value = mean(enso_Value), Event = first(Event), num_months_disaster = mean(num_months_disaster)) %>%
+  group_by(lat_box, lng_box, month_number, `Disaster Type`) %>%
+  summarize(enso_value = mean(enso_value), Event = first(Event), num_disaster_months = sum(num_months_disaster)) %>%
+  filter(!is.na(lat_box))
+
+```
+
+```{r}
+
+df_to_be_spatialized %>%
+  write_csv("~/Desktop/projects/emdat_proj/data/df_to_be_spatialized.csv")
+
+## Conversion to be done in pandas in python
+
+```
+
