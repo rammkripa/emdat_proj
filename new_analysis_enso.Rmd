@@ -463,10 +463,51 @@ df_to_be_spatialized <- emdat_hydrological_enso %>%
 
 ```{r}
 
-df_to_be_spatialized %>%
-  write_csv("~/Desktop/projects/emdat_proj/data/df_to_be_spatialized.csv")
+df_to_be_spatialized2 %>%
+  write_csv("~/Desktop/projects/emdat_proj/data/df_to_be_spatialized2.csv")
 
 ## Conversion to be done in pandas in python
 
 ```
+```{r}
 
+df_to_be_spatialized %>%
+  mutate(month_of_year = month_number %% 12) %>%
+  mutate(year = (month_number - month_of_year) / 12) %>%
+  arrange(month_number)
+
+
+```
+```{r}
+
+emdat_hydrological_enso %>%
+  arrange(-1 * num_months_disaster)
+
+```
+
+```{r}
+enso_valuesy <- enso_data %>%
+  mutate(month_number = (Year * 12) + MonthNum, enso_value = Value) %>%
+  select(month_number, enso_value)
+
+new_emdat_data <- emdat_hydrological_enso %>%
+  mutate(start_month_number = `Start Month` + (12 * start_year)) %>%
+  mutate(end_month_number = end_month + (12 * end_year)) %>%
+  rowwise() %>%
+  mutate(monthies = list(tibble(month_number = start_month_number:end_month_number))) %>%
+  filter(num_months_disaster > 2) %>%
+  unnest(cols = monthies) %>%
+  mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
+  group_by(lat_box, lng_box, month_number, `Dis No`, `Disaster Type`) %>%
+  summarize(mean_months = mean(num_months_disaster)) %>%
+  group_by(lat_box, lng_box, month_number, `Disaster Type`) %>%
+  summarize(disaster = (sum(mean_months) > 0)) %>%
+  filter(!is.na(lat_box)) 
+
+df_to_be_spatialized2 <- new_emdat_data %>%
+  left_join(enso_valuesy)
+
+
+  
+
+```
