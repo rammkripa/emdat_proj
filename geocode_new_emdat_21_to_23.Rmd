@@ -1,0 +1,56 @@
+---
+title: "Geocode new EMDAT Data"
+author: "Ram M Kripa"
+date: "2023-08-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r cars}
+library(weed)
+library(tidyverse)
+```
+
+```{r}
+
+emdat_recent = weed::read_emdat('~/Desktop/projects/emdat_proj/data/emdat_21_to_23_wet_and_dry.xlsx')
+
+```
+```{r}
+
+locationized_df <- emdat_recent$disaster_data %>%
+  split_locations(column_name = "Location")
+
+locationized_df %>%
+  percent_located_locations(lat_column = "Latitude",
+                            lng_column = "Longitude")
+
+```
+
+```{r}
+geocoded_dfs <- list()
+
+locationized_df
+
+geocode_test <- locationized_df %>%
+  head(n = 100L) %>%
+  geocode(geonames_username = "rammkripa")
+
+geocode_test %>%
+  percent_located_locations(lat_column = "lat",
+                            lng_column = "lng", plot_result = FALSE)
+
+geocoded_df <- locationized_df %>%
+  geocode_batches(batch_size = 800, geonames_username = "rammkripa")
+
+geocoded_df
+
+
+```
+
+
