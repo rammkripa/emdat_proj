@@ -33,7 +33,6 @@ locationized_df %>%
 ```
 
 ```{r}
-geocoded_dfs <- list()
 
 locationized_df
 
@@ -51,6 +50,9 @@ geocoded_df <- locationized_df %>%
 geocoded_df
 
 
+```
+```{r}
+geocoded_df
 ```
 
 

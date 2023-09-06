@@ -21,7 +21,10 @@ library(rnaturalearthdata)
 ## Loading In the Data
 
 ```{r}
-emdat <- read_csv('~/Desktop/projects/emdat_proj/full_emdat_geocoded_finally.csv')
+emdat_old <- read_csv('~/Desktop/projects/emdat_proj/full_emdat_geocoded_finally.csv')
+emdat_new <- read_csv('~/Desktop/projects/emdat_proj/data/geocoded_21_23_emdat.csv')
+
+emdat <- bind_rows(emdat_old, emdat_new)
 ```
 # How many disasters were located?
 
@@ -71,6 +74,15 @@ enso_data %>%
 ```
 
 ```{r}
+
+emdat_hydrological2 <- emdat_hydrological %>%
+  filter(!is.na(`Start Month`)) %>%
+  mutate(start_year = if_else(is.na(`Start Year`), Year, `Start Year`)) %>%
+  mutate(end_year = if_else(is.na(`End Year`), start_year, `End Year`)) %>%
+  mutate(end_month = if_else(is.na(`End Month`), `Start Month`, `End Month`)) %>%
+  mutate(num_months_disaster = (end_month - `Start Month` + 1) + 12 * (end_year - start_year)) %>%
+  filter(num_months_disaster > 0)
+
 emdat_hydrological_enso <- emdat_hydrological %>%
   full_join(enso_data, by = c("Year" = "Year", "Start Month" = "MonthNum")) %>%
   rename("enso_Value" = "Value") %>%
@@ -450,13 +462,13 @@ emdat_hydrological_enso %>%
 ```{r}
 resy <- 2.5
 
-df_to_be_spatialized <- emdat_hydrological_enso %>%
+df_to_be_spatialized <- emdat_hydrological %>%
   mutate(lat_box = (as.integer(lat) %/% resy) * resy , lng_box = (as.integer(lng) %/% resy) * resy) %>%
   mutate(month_number = (end_year * 12) + end_month) %>%
   group_by(lat_box, lng_box, month_number, `Dis No`, `Disaster Type`) %>%
-  summarize(enso_value = mean(enso_Value), Event = first(Event), num_months_disaster = mean(num_months_disaster)) %>%
+  summarize(num_months_disaster = mean(num_months_disaster)) %>%
   group_by(lat_box, lng_box, month_number, `Disaster Type`) %>%
-  summarize(enso_value = mean(enso_value), Event = first(Event), num_disaster_months = sum(num_months_disaster)) %>%
+  summarize(num_disaster_months = sum(num_months_disaster)) %>%
   filter(!is.na(lat_box))
 
 ```
@@ -490,7 +502,7 @@ enso_valuesy <- enso_data %>%
   mutate(month_number = (Year * 12) + MonthNum, enso_value = Value) %>%
   select(month_number, enso_value)
 
-new_emdat_data <- emdat_hydrological_enso %>%
+new_emdat_data <- emdat_hydrological2 %>%
   mutate(start_month_number = `Start Month` + (12 * start_year)) %>%
   mutate(end_month_number = end_month + (12 * end_year)) %>%
   rowwise() %>%
@@ -504,8 +516,39 @@ new_emdat_data <- emdat_hydrological_enso %>%
   summarize(disaster = (sum(mean_months) > 0)) %>%
   filter(!is.na(lat_box)) 
 
-df_to_be_spatialized2 <- new_emdat_data %>%
-  left_join(enso_valuesy)
+df_to_be_spatialized2 <- new_emdat_data
+
+new_enso_data_oni <- read_tsv("~/Desktop/oni_enso.tsv")
+
+new_enso_data_oni %>%
+  pivot_longer(cols = colnames(new_enso_data_oni)[-1],
+               names_to = "Month",
+               values_to = "enso_oni_value") %>%
+  rowwise() %>%
+  mutate(month_num = month_text_to_num(Month)) %>%
+  mutate(month_number = month_num + (12 * Year)) %>%
+  write_csv("~/Desktop/projects/emdat_proj/data/enso_data_updated_6_9_23.csv")
+  
+
+listy <- list()
+listy["DJF"] = 1
+listy["JFM"] = 2
+listy["FMA"] = 3
+listy["MAM"] = 4
+listy["AMJ"] = 5
+listy["MJJ"] = 6
+listy["JJA"] = 7
+listy["JAS"] = 8
+listy["ASO"] = 9
+listy["SON"] = 10
+listy["OND"] = 11
+listy["NDJ"] = 12
+
+month_text_to_num <- function(x) listy[[x]]
+
+new_emdat_data %>%
+  write_csv("~/Desktop/projects/emdat_proj/data/emdat_df_to_be_spatialized_updated_6_9_23.csv")
+
 
 
   
